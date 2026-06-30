@@ -42,12 +42,12 @@ class ChatFragment(
         viewLifecycleOwner.lifecycleScope.launch {
             repo.messages.collect { adapter.submit(it) }
         }
-        lifecycleScope.launch { repo.loadHistory() }
+        viewLifecycleOwner.lifecycleScope.launch { repo.loadHistory() }
     }
 
     /** Called by MainActivity when SWIPE_BACK is received while this fragment is active. */
     fun pageUp() {
-        lifecycleScope.launch { repo.loadOlder() }
+        viewLifecycleOwner.lifecycleScope.launch { repo.loadOlder() }
     }
 }
 
