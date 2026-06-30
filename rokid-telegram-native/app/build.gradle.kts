@@ -25,6 +25,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { viewBinding = true; buildConfig = true }
     sourceSets["main"].java.srcDirs("src/main/kotlin")
+    sourceSets["debug"].java.srcDirs("src/debug/kotlin")
     sourceSets["test"].java.srcDirs("src/test/kotlin")
     sourceSets["androidTest"].java.srcDirs("src/androidTest/kotlin")
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
