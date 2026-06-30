@@ -21,12 +21,25 @@ import java.io.File
  * Covers ChatFragment (and its ComposerOverlay) for the duration it is on screen.
  * Back-press via the standard back-stack pops this fragment and restores the chat.
  */
-class MediaViewerFragment(
-    private val file: File,
-    private val kind: Kind,
-) : Fragment() {
+class MediaViewerFragment : Fragment() {
 
     enum class Kind { PHOTO, VIDEO }
+
+    companion object {
+        private const val ARG_FILE_PATH = "filePath"
+        private const val ARG_KIND      = "kind"
+
+        fun newInstance(filePath: String, kindName: String): MediaViewerFragment =
+            MediaViewerFragment().also {
+                it.arguments = Bundle().apply {
+                    putString(ARG_FILE_PATH, filePath)
+                    putString(ARG_KIND, kindName)
+                }
+            }
+    }
+
+    private val file: File get() = File(requireArguments().getString(ARG_FILE_PATH)!!)
+    private val kind: Kind get() = Kind.valueOf(requireArguments().getString(ARG_KIND)!!)
 
     private var player: ExoPlayer? = null
 

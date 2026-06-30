@@ -10,30 +10,74 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.data.ChatRow
 import kotlinx.coroutines.launch
 
-class ChatListFragment(
-    private val repo: ChatRepo,
-    private val onOpenChat: (Long) -> Unit,
-) : Fragment() {
+class ChatListFragment : Fragment() {
+
+    companion object {
+        fun newInstance(): ChatListFragment = ChatListFragment()
+    }
 
     private lateinit var adapter: Adapter
+
+    /** Resolved in onViewCreated via the service binder so it survives process death. */
+    private val repo: ChatRepo? get() =
+        (requireActivity() as? MainActivity)?.requireService()?.getChatRepo()
+
+    private val onOpenChat: (Long) -> Unit get() = { chatId ->
+        (requireActivity() as? MainActivity)?.openChat(chatId)
+    }
 
     override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View =
         i.inflate(R.layout.fragment_chat_list, c, false)
 
     override fun onViewCreated(view: View, s: Bundle?) {
-        val list = view.findViewById<RecyclerView>(R.id.list)
-        list.layoutManager = LinearLayoutManager(requireContext())
+        val rv = view.findViewById<RecyclerView>(R.id.list)
+        rv.layoutManager = LinearLayoutManager(requireContext())
         adapter = Adapter(onOpenChat)
-        list.adapter = adapter
-        viewLifecycleOwner.lifecycleScope.launch {
-            repo.chats.collect { adapter.submit(it) }
+        rv.adapter = adapter
+
+        val searchBar = view.findViewById<View>(R.id.search_bar)
+        val searchInput = view.findViewById<android.widget.EditText>(R.id.search_input)
+
+        searchBar?.setOnClickListener {
+            searchInput?.requestFocus()
         }
-        lifecycleScope.launch { repo.loadInitial() }
+
+        searchInput?.setOnEditorActionListener { _, _, _ ->
+            val query = searchInput.text.toString().trim()
+            if (query.isNotEmpty()) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val results = repo?.search(query) ?: emptyList()
+                    adapter.submit(results)
+                }
+            }
+            true
+        }
+
+        // Back key on the search input restores full chat list
+        searchInput?.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                event.action == android.view.KeyEvent.ACTION_UP) {
+                searchInput.text.clear()
+                searchInput.clearFocus()
+                // Restore full list
+                viewLifecycleOwner.lifecycleScope.launch {
+                    repo?.chats?.value?.let { adapter.submit(it) }
+                }
+                true
+            } else false
+        }
+
+        val r = repo ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            r.chats.collect { adapter.submit(it) }
+        }
+        lifecycleScope.launch { r.loadInitial() }
     }
 
     class Adapter(private val onClick: (Long) -> Unit) :

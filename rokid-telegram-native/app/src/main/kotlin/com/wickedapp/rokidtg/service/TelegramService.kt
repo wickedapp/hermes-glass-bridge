@@ -11,6 +11,8 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.BuildConfig
 import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.data.ChatRepo
+import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.ui.BannerHost
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,10 +31,29 @@ class TelegramService : LifecycleService() {
     var notifications: NotificationCenter? = null
         private set
 
+    /** Single ChatRepo for this service lifetime; retains its live-update cache. */
+    private var chatRepo: ChatRepo? = null
+
+    /** Per-chat MessageRepo cache; keyed by chatId so history is retained across back-stack entries. */
+    private val messageRepos = mutableMapOf<Long, MessageRepo>()
+    private var networkMonitor: NetworkMonitor? = null
+
     inner class LocalBinder : Binder() {
         fun getClient(): TdLibClient? = client
         fun getAuthorizedFlow(): StateFlow<Boolean> = this@TelegramService.authorized
         fun getNotifications(): NotificationCenter? = notifications
+
+        /** Returns (or lazily creates) the service-scoped ChatRepo. */
+        fun getChatRepo(): ChatRepo? {
+            val c = client ?: return null
+            return chatRepo ?: ChatRepo(c, lifecycleScope).also { chatRepo = it }
+        }
+
+        /** Returns (or lazily creates) a service-scoped MessageRepo for [chatId]. */
+        fun getMessageRepo(chatId: Long): MessageRepo? {
+            val c = client ?: return null
+            return messageRepos.getOrPut(chatId) { MessageRepo(c, chatId, lifecycleScope) }
+        }
     }
 
     private val binder = LocalBinder()
@@ -54,7 +75,7 @@ class TelegramService : LifecycleService() {
         )
         client = c
         notifications = NotificationCenter(this, c, lifecycleScope)
-        NetworkMonitor(this, c)
+        networkMonitor = NetworkMonitor(this, c)
 
         lifecycleScope.launch {
             c.updates.filterIsInstance<TdApi.UpdateAuthorizationState>().collect { upd ->
@@ -69,6 +90,8 @@ class TelegramService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        networkMonitor?.close()
+        networkMonitor = null
         client?.close()
         client = null
         super.onDestroy()

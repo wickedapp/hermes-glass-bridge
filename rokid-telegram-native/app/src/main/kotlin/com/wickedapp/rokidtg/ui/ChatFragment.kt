@@ -14,7 +14,6 @@ import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.data.MsgRow
-import com.wickedapp.rokidtg.data.TdClientFacade
 import com.wickedapp.rokidtg.media.MediaPlayerPool
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -23,19 +22,39 @@ import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 import java.io.File
 
-class ChatFragment(
-    private val td: TdClientFacade,
-    val chatId: Long,
-    private val chatTitle: String,
-) : Fragment() {
+class ChatFragment : Fragment() {
+
+    companion object {
+        private const val ARG_CHAT_ID    = "chatId"
+        private const val ARG_CHAT_TITLE = "chatTitle"
+
+        fun newInstance(chatId: Long, chatTitle: String): ChatFragment =
+            ChatFragment().also {
+                it.arguments = Bundle().apply {
+                    putLong(ARG_CHAT_ID, chatId)
+                    putString(ARG_CHAT_TITLE, chatTitle)
+                }
+            }
+    }
+
+    val chatId: Long get() = requireArguments().getLong(ARG_CHAT_ID)
+    private val chatTitle: String get() = requireArguments().getString(ARG_CHAT_TITLE, "")
+
+    private val td get() = (requireActivity() as MainActivity).requireService().getClient()
 
     private lateinit var adapter: MsgAdapter
-    private lateinit var repo: MessageRepo
+
+    /** Service-scoped MessageRepo — retained across back-stack entries. */
+    private val repo: MessageRepo? get() =
+        (requireActivity() as? MainActivity)?.requireService()?.getMessageRepo(chatId)
+
     private var composer: ComposerOverlay? = null
     private var sendVoiceNote: ((java.io.File, Int, ByteArray) -> Unit)? = null
 
-    /** Lazily-created single-slot player for incoming voice notes. */
-    private val playerPool: MediaPlayerPool by lazy { MediaPlayerPool(requireContext()) }
+    /** Single-slot player for incoming voice notes; null until first use. */
+    private var playerPool: MediaPlayerPool? = null
+    private fun playerPool(): MediaPlayerPool =
+        playerPool ?: MediaPlayerPool(requireContext()).also { playerPool = it }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View =
         inflater.inflate(R.layout.fragment_chat, container, false)
@@ -54,22 +73,25 @@ class ChatFragment(
         )
         list.adapter = adapter
 
-        repo = MessageRepo(td, chatId, viewLifecycleOwner.lifecycleScope)
-
+        val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
-            repo.messages.collect { adapter.submit(it) }
+            r.messages.collect { adapter.submit(it) }
         }
-        viewLifecycleOwner.lifecycleScope.launch { repo.loadHistory() }
+        // Only load history if cache is empty (service-scoped repo already has it on re-entry)
+        if (r.messages.value.isEmpty()) {
+            viewLifecycleOwner.lifecycleScope.launch { r.loadHistory() }
+        }
 
         // Wire composer overlay — lazily obtains the shared VoiceHelperBridge from MainActivity.
+        val tdClient = td ?: return
         val bridge = (requireActivity() as? MainActivity)?.getOrCreateBridge()
         if (bridge != null) {
-            composer = ComposerOverlay(view, td, chatId, bridge)
+            composer = ComposerOverlay(view, tdClient, chatId, bridge)
         }
 
         // Voice-note send callback used by ComposerOverlay.stopAndSendVoiceNote.
         sendVoiceNote = { file, dur, wave ->
-            td.send(TdApi.SendMessage().apply {
+            tdClient.send(TdApi.SendMessage().apply {
                 this.chatId = this@ChatFragment.chatId
                 inputMessageContent = TdApi.InputMessageVoiceNote().apply {
                     voiceNote = TdApi.InputFileLocal(file.absolutePath)
@@ -87,6 +109,9 @@ class ChatFragment(
     }
 
     override fun onDestroyView() {
+        // Release MediaPlayerPool if it was created to avoid ExoPlayer leaks.
+        playerPool?.stop()
+        playerPool = null
         composer = null
         sendVoiceNote = null
         super.onDestroyView()
@@ -102,12 +127,13 @@ class ChatFragment(
      * pushes [MediaViewerFragment] with the local file.
      */
     private fun downloadAndView(fileId: Int, kind: MediaViewerFragment.Kind) {
+        val tdClient = td ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             // Subscribe BEFORE sending the request to avoid losing UpdateFile emissions
             // that may fire synchronously when TDLib already has the file cached.
             val updateJob = launch {
                 try {
-                    val update = td.updates
+                    val update = tdClient.updates
                         .filterIsInstance<TdApi.UpdateFile>()
                         .first { it.file.id == fileId && it.file.local.isDownloadingCompleted }
                     openMediaViewer(File(update.file.local.path), kind)
@@ -115,7 +141,7 @@ class ChatFragment(
                     Timber.tag("Media").w(e, "UpdateFile collect cancelled or failed")
                 }
             }
-            td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+            tdClient.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
                 if (result is TdApi.Error) {
                     Timber.tag("Media").e("DownloadFile failed: %d %s", result.code, result.message)
                 } else if (result is TdApi.File && result.local.isDownloadingCompleted) {
@@ -133,27 +159,28 @@ class ChatFragment(
      * Download [fileId] and play it via [MediaPlayerPool] once complete.
      */
     private fun downloadAndPlay(fileId: Int) {
+        val tdClient = td ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             // Subscribe BEFORE sending the request to avoid losing UpdateFile emissions
             // that may fire synchronously when TDLib already has the file cached.
             val updateJob = launch {
                 try {
-                    val update = td.updates
+                    val update = tdClient.updates
                         .filterIsInstance<TdApi.UpdateFile>()
                         .first { it.file.id == fileId && it.file.local.isDownloadingCompleted }
-                    playerPool.playVoice(File(update.file.local.path))
+                    playerPool().playVoice(File(update.file.local.path))
                 } catch (e: Exception) {
                     Timber.tag("Voice").w(e, "UpdateFile collect cancelled or failed")
                 }
             }
-            td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+            tdClient.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
                 if (result is TdApi.Error) {
                     Timber.tag("Voice").e("DownloadFile failed: %d %s", result.code, result.message)
                 } else if (result is TdApi.File && result.local.isDownloadingCompleted) {
                     // File was already cached — result arrives synchronously; cancel the flow collector.
                     updateJob.cancel()
                     viewLifecycleOwner.lifecycleScope.launch {
-                        playerPool.playVoice(File(result.local.path))
+                        playerPool().playVoice(File(result.local.path))
                     }
                 }
             }
@@ -162,7 +189,7 @@ class ChatFragment(
 
     private fun openMediaViewer(file: File, kind: MediaViewerFragment.Kind) {
         parentFragmentManager.beginTransaction()
-            .replace(R.id.container, MediaViewerFragment(file, kind))
+            .replace(R.id.container, MediaViewerFragment.newInstance(file.absolutePath, kind.name))
             .addToBackStack("media")
             .commitAllowingStateLoss()
     }
@@ -173,7 +200,7 @@ class ChatFragment(
 
     /** Called by MainActivity when SWIPE_BACK is received while this fragment is active. */
     fun pageUp() {
-        viewLifecycleOwner.lifecycleScope.launch { repo.loadOlder() }
+        viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
     }
 
     /**

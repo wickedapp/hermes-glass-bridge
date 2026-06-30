@@ -14,7 +14,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
 import com.wickedapp.rokidtg.service.TelegramService
 import com.wickedapp.rokidtg.ui.BannerHost
@@ -43,7 +42,21 @@ class MainActivity : AppCompatActivity(), GestureSink {
     var voiceHelperDisabled: Boolean = false
 
     fun getOrCreateBridge(): VoiceHelperBridge {
-        return voiceBridge ?: VoiceHelperBridge().also { voiceBridge = it }
+        return voiceBridge ?: VoiceHelperBridge(port = 0).also { voiceBridge = it }
+    }
+
+    /** Returns the current service binder, or throws if not yet bound. Used by fragments. */
+    fun requireService(): TelegramService.LocalBinder =
+        svc ?: error("TelegramService not yet bound")
+
+    /** Opens a chat by ID; called from ChatListFragment adapter click. */
+    fun openChat(chatId: Long) {
+        val title = svc?.getChatRepo()?.chats?.value?.firstOrNull { it.id == chatId }?.title ?: ""
+        svc?.getNotifications()?.currentOpenChatId = chatId
+        supportFragmentManager.beginTransaction()
+            .replace(binding.container.id, ChatFragment.newInstance(chatId, title))
+            .addToBackStack("chat:$chatId")
+            .commitAllowingStateLoss()
     }
 
     private val conn = object : ServiceConnection {
@@ -53,21 +66,10 @@ class MainActivity : AppCompatActivity(), GestureSink {
             // Deviation from brief: swap in ChatListFragment immediately on service bind
             // rather than waiting for auth state, so the layout can be verified on-device
             // without a seeded TDLib session. Auth-gating is deferred to a future task.
-            val client = b.getClient() ?: return
-            val repo = ChatRepo(client, lifecycleScope)
             // commitAllowingStateLoss: service can connect after onSaveInstanceState during
             // fast start/stop cycles; state loss is acceptable here (fragment is recreated on resume).
             supportFragmentManager.beginTransaction()
-                .replace(binding.container.id, ChatListFragment(repo) { chatId ->
-                    val title = repo.chats.value.firstOrNull { it.id == chatId }?.title ?: ""
-                    // Set currentOpenChatId immediately when pushing the chat fragment,
-                    // before the back-stack listener fires.
-                    svc?.getNotifications()?.currentOpenChatId = chatId
-                    supportFragmentManager.beginTransaction()
-                        .replace(binding.container.id, ChatFragment(client, chatId, title))
-                        .addToBackStack("chat:$chatId")
-                        .commitAllowingStateLoss()
-                })
+                .replace(binding.container.id, ChatListFragment.newInstance())
                 .commitAllowingStateLoss()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -126,9 +128,9 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     private fun handleDeepLink(intent: Intent?) {
         val chatId = intent?.getLongExtra("openChatId", -1L)?.takeIf { it != -1L } ?: return
-        val client = svc?.getClient() ?: return
+        if (svc?.getClient() == null) return
         supportFragmentManager.beginTransaction()
-            .replace(binding.container.id, ChatFragment(client, chatId, ""))
+            .replace(binding.container.id, ChatFragment.newInstance(chatId, ""))
             .addToBackStack("chat:$chatId")
             .commitAllowingStateLoss()
         svc?.getNotifications()?.currentOpenChatId = chatId
