@@ -53,6 +53,7 @@ class TelegramService : LifecycleService() {
         )
         client = c
         notifications = NotificationCenter(this, c, lifecycleScope)
+        NetworkMonitor(this, c)
 
         lifecycleScope.launch {
             c.updates.filterIsInstance<TdApi.UpdateAuthorizationState>().collect { upd ->
