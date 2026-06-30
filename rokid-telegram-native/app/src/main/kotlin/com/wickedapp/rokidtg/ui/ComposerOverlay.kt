@@ -1,0 +1,154 @@
+package com.wickedapp.rokidtg.ui
+
+import android.content.Intent
+import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.view.isVisible
+import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.data.TdClientFacade
+import com.wickedapp.rokidtg.voice.VoiceHelperBridge
+import org.drinkless.tdlib.TdApi
+import timber.log.Timber
+
+/**
+ * Manages the composer overlay bar (overlay_composer.xml) that appears at the bottom of
+ * ChatFragment. Driven by VoiceHelperBridge transcripts; sends via TDLib on final transcript.
+ *
+ * State machine (toggleVoice):
+ *  - IDLE          → start voice (show + startBridge + launchHelper)
+ *  - ACTIVE/empty  → cancel (hide, clear bridge)
+ *  - ACTIVE/final  → send message via TDLib, then hide
+ */
+class ComposerOverlay(
+    private val root: View,
+    private val td: TdClientFacade,
+    private val chatId: Long,
+    private val bridge: VoiceHelperBridge,
+) {
+    private val container: View      = root.findViewById(R.id.composer_overlay)
+    private val transcriptTv: TextView = root.findViewById(R.id.composer_transcript)
+    private val sendIcon: ImageView  = root.findViewById(R.id.composer_send)
+
+    private var active = false
+    private var finalTranscript: String? = null
+
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
+    /** Called by ChatFragment.onVoiceToggle(). Returns true if consumed. */
+    fun toggleVoice(): Boolean {
+        return when {
+            !active              -> { startVoice(); true }
+            finalTranscript != null -> { sendAndHide(); true }
+            else                 -> { cancel(); true }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    private fun startVoice() {
+        active = true
+        finalTranscript = null
+        setTranscript("", isFinal = false)
+        show()
+        startBridge()
+        launchHelper()
+    }
+
+    private fun startBridge() {
+        bridge.start(object : VoiceHelperBridge.Listener {
+            override fun onInterim(text: String) {
+                root.post {
+                    setTranscript(text, isFinal = false)
+                }
+            }
+
+            override fun onFinal(text: String) {
+                root.post {
+                    finalTranscript = text
+                    setTranscript(text, isFinal = true)
+                    sendIcon.isVisible = true
+                }
+            }
+
+            override fun onError(code: String, msg: String) {
+                Timber.tag("Voice").w("bridge error %s: %s", code, msg)
+                root.post { cancel() }
+            }
+
+            override fun onTimeout(stage: String) {
+                Timber.tag("Voice").w("bridge timeout at stage=%s", stage)
+                root.post { cancel() }
+            }
+        })
+    }
+
+    /** [VERIFY:launch-intent] — intent shape is untested without manual on-device gesture. */
+    private fun launchHelper() {
+        runCatching {
+            val intent = Intent().apply {
+                setClassName(
+                    "com.rokid.os.sprite.launcher",
+                    "com.rokid.os.sprite.launcher.main.SpriteMainActivity"
+                )
+                putExtra("appId", "com.wickedapp.voicehelper")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            root.context.startActivity(intent)
+        }.onFailure { e ->
+            Timber.tag("Voice").w(e, "launchHelper failed — voice-helper.aix not installed or unreachable")
+        }
+    }
+
+    private fun sendAndHide() {
+        val text = finalTranscript ?: return
+        val req = TdApi.SendMessage().apply {
+            chatId = this@ComposerOverlay.chatId
+            // v1.8.65: InputMessageText(FormattedText, LinkPreviewOptions?, boolean clearDraft)
+            // Brief expected (text, disable_web_page_preview, clear_draft) but actual API uses
+            // LinkPreviewOptions instead of a boolean for web preview. Pass null to use defaults.
+            inputMessageContent = TdApi.InputMessageText(
+                TdApi.FormattedText(text, emptyArray()),
+                null,  // linkPreviewOptions — null = default (preview enabled)
+                false  // clearDraft
+            )
+        }
+        td.send(req) { result ->
+            if (result is TdApi.Error) {
+                Timber.tag("Voice").e("sendMessage failed: %s %s", result.code, result.message)
+            }
+            // On success: UpdateNewMessage arrives via MessageRepo's existing update subscription.
+        }
+        hide()
+    }
+
+    private fun cancel() {
+        bridge.cancel()
+        hide()
+    }
+
+    private fun show() {
+        container.visibility = View.VISIBLE
+    }
+
+    private fun hide() {
+        active = false
+        finalTranscript = null
+        container.visibility = View.GONE
+        sendIcon.isVisible = false
+        setTranscript("", isFinal = false)
+        bridge.cancel()
+    }
+
+    private fun setTranscript(text: String, isFinal: Boolean) {
+        transcriptTv.text = text
+        transcriptTv.setTextColor(
+            if (isFinal) root.context.getColor(com.wickedapp.rokidtg.R.color.primary)
+            else root.context.getColor(com.wickedapp.rokidtg.R.color.primary_50)
+        )
+    }
+}

@@ -18,6 +18,7 @@ import com.wickedapp.rokidtg.ui.ChatListFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
+import com.wickedapp.rokidtg.voice.VoiceHelperBridge
 import timber.log.Timber
 
 class MainActivity : AppCompatActivity(), GestureSink {
@@ -26,6 +27,13 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     private var svc: TelegramService.LocalBinder? = null
     private var bound = false
+
+    /** Lazily created, shared VoiceHelperBridge. Closed in onDestroy. */
+    private var voiceBridge: VoiceHelperBridge? = null
+
+    fun getOrCreateBridge(): VoiceHelperBridge {
+        return voiceBridge ?: VoiceHelperBridge().also { voiceBridge = it }
+    }
 
     private val conn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, b: IBinder?) {
@@ -110,6 +118,12 @@ class MainActivity : AppCompatActivity(), GestureSink {
     override fun onResume() { super.onResume(); router.install() }
     override fun onPause()  { router.uninstall(); super.onPause() }
 
+    override fun onDestroy() {
+        voiceBridge?.close()
+        voiceBridge = null
+        super.onDestroy()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         router.dispatchKey(event) || super.dispatchKeyEvent(event)
 
@@ -121,6 +135,10 @@ class MainActivity : AppCompatActivity(), GestureSink {
         }
         SpriteBroadcast.Gesture.TAP           -> { currentFocus?.performClick(); true }
         SpriteBroadcast.Gesture.BACK          -> { onBackPressedDispatcher.onBackPressed(); true }
+        SpriteBroadcast.Gesture.TWO_DOUBLE_TAP -> {
+            val f = supportFragmentManager.findFragmentById(binding.container.id)
+            (f as? ChatFragment)?.onVoiceToggle()?.let { true } ?: false
+        }
         else -> false
     }
 

@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.data.MsgRow
@@ -23,6 +24,7 @@ class ChatFragment(
 
     private lateinit var adapter: MsgAdapter
     private lateinit var repo: MessageRepo
+    private var composer: ComposerOverlay? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View =
         inflater.inflate(R.layout.fragment_chat, container, false)
@@ -43,12 +45,29 @@ class ChatFragment(
             repo.messages.collect { adapter.submit(it) }
         }
         viewLifecycleOwner.lifecycleScope.launch { repo.loadHistory() }
+
+        // Wire composer overlay — lazily obtains the shared VoiceHelperBridge from MainActivity.
+        val bridge = (requireActivity() as? MainActivity)?.getOrCreateBridge()
+        if (bridge != null) {
+            composer = ComposerOverlay(view, td, chatId, bridge)
+        }
+    }
+
+    override fun onDestroyView() {
+        composer = null
+        super.onDestroyView()
     }
 
     /** Called by MainActivity when SWIPE_BACK is received while this fragment is active. */
     fun pageUp() {
         viewLifecycleOwner.lifecycleScope.launch { repo.loadOlder() }
     }
+
+    /**
+     * Called by MainActivity on TWO_DOUBLE_TAP gesture.
+     * Returns true if the overlay handled the toggle (i.e. this fragment is active).
+     */
+    fun onVoiceToggle(): Boolean = composer?.toggleVoice() ?: false
 }
 
 // ---------------------------------------------------------------------------

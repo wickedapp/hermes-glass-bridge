@@ -24,4 +24,9 @@
         android:focusable="true"
         android:focusableInTouchMode="true" />
 
+    <include
+        layout="@layout/overlay_composer"
+        android:layout_width="match_parent"
+        android:layout_height="80px" />
+
 </LinearLayout>
