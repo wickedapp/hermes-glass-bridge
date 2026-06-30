@@ -13,7 +13,10 @@
         android:layout_width="@dimen/icon_reg"
         android:layout_height="@dimen/icon_reg"
         android:src="@drawable/ic_mic"
-        android:contentDescription="Microphone" />
+        android:focusable="true"
+        android:clickable="true"
+        android:longClickable="true"
+        android:contentDescription="Tap to dictate, long-press for voice note" />
 
     <EditText
         android:id="@+id/composerInput"

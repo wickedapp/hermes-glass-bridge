@@ -102,6 +102,15 @@ class ChatFragment : Fragment() {
         // Auto-focus the composer so a paired BT keyboard can type immediately on open.
         view.findViewById<android.widget.EditText>(R.id.composerInput)?.requestFocus()
 
+        // Mic icon: tap = voice→text (same as two-finger double-tap gesture);
+        // long-press = voice note (same as two-finger long-press gesture).
+        // These give the user a fallback when no touchpad gestures are available
+        // (e.g. driving via scrcpy or only DPAD navigation).
+        view.findViewById<ImageView>(R.id.composer_mic)?.apply {
+            setOnClickListener { onVoiceToggle() }
+            setOnLongClickListener { onVoiceNoteToggle(); true }
+        }
+
         // Voice-note send callback used by ComposerOverlay.stopAndSendVoiceNote.
         sendVoiceNote = { file, dur, wave ->
             tdClient.send(TdApi.SendMessage().apply {
