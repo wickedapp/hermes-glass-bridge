@@ -104,12 +104,11 @@ class ChatFragment : Fragment() {
         // via MainActivity.dispatchKeyEvent → onPrintableKey.
         list.post { list.requestFocus() }
 
-        // Mic icon: tap = voice→text (same as two-finger double-tap gesture);
-        // long-press = voice note (same as two-finger long-press gesture).
-        // These give the user a fallback when no touchpad gestures are available
-        // (e.g. driving via scrcpy or only DPAD navigation).
-        view.findViewById<ImageView>(R.id.composer_mic)?.apply {
-            setOnClickListener { onVoiceToggle() }
+        // Composer bar: tap = voice→text; long-press = voice note. The whole bar is the
+        // tap target so users don't have to aim at the small mic icon.
+        view.findViewById<View>(R.id.composer_overlay)?.apply {
+            // onClick is already wired inside ComposerOverlay.init; add long-press here
+            // because ComposerOverlay doesn't own the voice-note send callback.
             setOnLongClickListener { onVoiceNoteToggle(); true }
         }
 

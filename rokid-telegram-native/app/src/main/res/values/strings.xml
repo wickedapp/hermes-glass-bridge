@@ -1,4 +1,16 @@
 <resources>
     <string name="app_name">Rokid TG</string>
     <string name="placeholder_scaffold">Rokid TG — scaffolding</string>
+
+    <!-- Composer status (shown in bottom 80px cautious zone, design spec §7) -->
+    <string name="composer_idle_status">说话以发送消息</string>
+    <string name="composer_idle_hint">两指双击 ▸ 说话 · 两指长按 ▸ 语音消息 · 拨动 ▸ 滚动</string>
+    <string name="composer_listening">正在听…</string>
+    <string name="composer_recording">● 录音中… 再次长按结束并发送</string>
+    <string name="composer_ready_to_send">再次双击发送</string>
+    <string name="composer_input_hint">键入消息…</string>
+
+    <!-- a11y -->
+    <string name="composer_mic_desc">麦克风</string>
+    <string name="composer_send_desc">发送</string>
 </resources>
