@@ -42,13 +42,13 @@ Obsidian planning doc:
 ### Correct Current Project
 
 ```text
-/Users/wickedapp/Projects/hermes-glass-bridge/rokid-telegram-phone-app
+/Users/wickedapp/Development/hermes-glass-bridge/rokid-telegram-phone-app
 ```
 
 APK:
 
 ```text
-/Users/wickedapp/Projects/hermes-glass-bridge/rokid-telegram-phone-app/app/build/outputs/apk/debug/app-debug.apk
+/Users/wickedapp/Development/hermes-glass-bridge/rokid-telegram-phone-app/app/build/outputs/apk/debug/app-debug.apk
 SHA256: 9fbf19c4f7a2677c98b3b4ca454890fdbedb763fbd79f6b5dc280cce77211e30
 Version: v0.1.0-phone-webtg-voice
 Package: com.wickedapp.rokidtelegram
@@ -59,7 +59,7 @@ Build status: `BUILD SUCCESSFUL`.
 ### Superseded Prototype
 
 ```text
-/Users/wickedapp/Projects/hermes-glass-bridge/rokid-telegram-app
+/Users/wickedapp/Development/hermes-glass-bridge/rokid-telegram-app
 ```
 
 Glasses-side WebView prototype. Not final direction because it requires glasses/Station internet.
@@ -67,8 +67,8 @@ Glasses-side WebView prototype. Not final direction because it requires glasses/
 ### Dev Console Related
 
 ```text
-/Users/wickedapp/Projects/hermes-glass-bridge/android-app
-/Users/wickedapp/Projects/hermes-glass-bridge/rokid-aiui-mic-test
+/Users/wickedapp/Development/hermes-glass-bridge/android-app
+/Users/wickedapp/Development/hermes-glass-bridge/rokid-aiui-mic-test
 ```
 
 Dev Console is separate from Telegram.
@@ -103,7 +103,7 @@ rokid-telegram-phone-app/app/src/main/java/com/wickedapp/rokidtelegram/MainActiv
 ## Build Commands
 
 ```bash
-cd /Users/wickedapp/Projects/hermes-glass-bridge/rokid-telegram-phone-app
+cd /Users/wickedapp/Development/hermes-glass-bridge/rokid-telegram-phone-app
 ./gradlew :app:assembleDebug --no-daemon
 ```
 
@@ -134,7 +134,7 @@ Target should not be `model:RG_glasses`.
 2. Install phone APK:
 
 ```bash
-cd /Users/wickedapp/Projects/hermes-glass-bridge/rokid-telegram-phone-app
+cd /Users/wickedapp/Development/hermes-glass-bridge/rokid-telegram-phone-app
 adb -s <PHONE_SERIAL> install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s <PHONE_SERIAL> shell am start -n com.wickedapp.rokidtelegram/.MainActivity
 ```

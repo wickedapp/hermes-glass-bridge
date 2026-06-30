@@ -90,7 +90,7 @@ Sessions:
 **Commands:**
 
 ```bash
-cd /Users/wickedapp/Projects/hermes-glass-bridge
+cd /Users/wickedapp/Development/hermes-glass-bridge
 python3 -m py_compile app/main.py
 # package AIX and launch with adb
 ```
