@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/bg"
+    android:paddingTop="@dimen/safe_top"
+    android:paddingBottom="@dimen/safe_bottom"
+    android:paddingStart="32dp"
+    android:paddingEnd="32dp">
+
+    <TextView
+        android:id="@+id/auth_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="@dimen/text_l2"
+        android:textColor="@color/primary"
+        android:layout_marginBottom="12dp" />
+
+    <LinearLayout
+        android:id="@+id/auth_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_stroke_80"
+        android:padding="14dp">
+
+        <TextView
+            android:id="@+id/auth_prompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_l4"
+            android:textColor="@color/primary_80"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/auth_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_l3"
+            android:textColor="@color/primary"
+            android:textColorHint="@color/primary_40"
+            android:background="@null"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:imeOptions="actionDone"
+            android:inputType="phone" />
+
+        <TextView
+            android:id="@+id/auth_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_l5"
+            android:textColor="@color/primary"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/auth_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Press Enter to submit"
+        android:textSize="@dimen/text_l5"
+        android:textColor="@color/primary_40"
+        android:layout_marginTop="12dp" />
+
+</LinearLayout>

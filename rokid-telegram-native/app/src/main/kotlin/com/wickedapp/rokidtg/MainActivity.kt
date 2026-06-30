@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
 import com.wickedapp.rokidtg.service.TelegramService
+import com.wickedapp.rokidtg.ui.AuthFragment
 import com.wickedapp.rokidtg.ui.BannerHost
 import com.wickedapp.rokidtg.ui.ChatFragment
 import com.wickedapp.rokidtg.ui.ChatListFragment
@@ -23,6 +24,9 @@ import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
 import com.wickedapp.rokidtg.voice.VoiceHelperBridge
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 
 class MainActivity : AppCompatActivity(), GestureSink {
@@ -64,20 +68,44 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     private val conn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, b: IBinder?) {
-            svc = b as TelegramService.LocalBinder
+            val binder = b as TelegramService.LocalBinder
+            svc = binder
             bound = true
-            // Deviation from brief: swap in ChatListFragment immediately on service bind
-            // rather than waiting for auth state, so the layout can be verified on-device
-            // without a seeded TDLib session. Auth-gating is deferred to a future task.
-            // commitAllowingStateLoss: service can connect after onSaveInstanceState during
-            // fast start/stop cycles; state loss is acceptable here (fragment is recreated on resume).
-            supportFragmentManager.beginTransaction()
-                .replace(binding.container.id, ChatListFragment.newInstance())
-                .commitAllowingStateLoss()
+            lifecycleScope.launch {
+                binder.getAuthStateFlow().filterNotNull().collect { state ->
+                    routeForAuthState(state)
+                }
+            }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             svc = null
             bound = false
+        }
+    }
+
+    /**
+     * Swap the root fragment based on authorization state. Only acts on category transitions
+     * (auth-needed vs. authorized) so we don't churn the UI on every TDLib state tick.
+     */
+    private fun routeForAuthState(state: TdApi.AuthorizationState) {
+        val current = supportFragmentManager.findFragmentById(binding.container.id)
+        val needAuth = state !is TdApi.AuthorizationStateReady &&
+                       state !is TdApi.AuthorizationStateLoggingOut &&
+                       state !is TdApi.AuthorizationStateClosing &&
+                       state !is TdApi.AuthorizationStateClosed
+        Timber.tag("Nav").i("route state=%s needAuth=%s current=%s", state.javaClass.simpleName, needAuth, current?.javaClass?.simpleName)
+        when {
+            needAuth && current !is AuthFragment -> {
+                supportFragmentManager.beginTransaction()
+                    .replace(binding.container.id, AuthFragment.newInstance())
+                    .commitAllowingStateLoss()
+            }
+            !needAuth && state is TdApi.AuthorizationStateReady && current !is ChatListFragment && current !is ChatFragment -> {
+                supportFragmentManager.beginTransaction()
+                    .replace(binding.container.id, ChatListFragment.newInstance())
+                    .commitAllowingStateLoss()
+            }
+            else -> { /* same category — let AuthFragment handle its own per-state UI */ }
         }
     }
 
@@ -149,6 +177,12 @@ class MainActivity : AppCompatActivity(), GestureSink {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // If a text input is focused, let it consume keys first so EditText listeners
+        // (OnEditorAction, OnKey, IME action) work — otherwise the router below would
+        // swallow ENTER as Gesture.TAP before the EditText ever sees ACTION_DOWN.
+        if (currentFocus is android.widget.EditText) {
+            return super.dispatchKeyEvent(event)
+        }
         // Check for printable key events while in ChatFragment
         if (event.action == KeyEvent.ACTION_DOWN && event.unicodeChar != 0) {
             val f = supportFragmentManager.findFragmentById(binding.container.id)

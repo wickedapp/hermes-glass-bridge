@@ -25,8 +25,16 @@ import java.io.File
 class TelegramService : LifecycleService() {
 
     private var client: TdLibClient? = null
+
+    private val _authState = MutableStateFlow<TdApi.AuthorizationState?>(null)
+    val authState: StateFlow<TdApi.AuthorizationState?> = _authState
+
     private val _authorized = MutableStateFlow(false)
     val authorized: StateFlow<Boolean> = _authorized
+
+    /** Last error surfaced from any auth submit call (cleared on next successful state transition). */
+    private val _lastAuthError = MutableStateFlow<String?>(null)
+    val lastAuthError: StateFlow<String?> = _lastAuthError
 
     var notifications: NotificationCenter? = null
         private set
@@ -41,7 +49,55 @@ class TelegramService : LifecycleService() {
     inner class LocalBinder : Binder() {
         fun getClient(): TdLibClient? = client
         fun getAuthorizedFlow(): StateFlow<Boolean> = this@TelegramService.authorized
+        fun getAuthStateFlow(): StateFlow<TdApi.AuthorizationState?> = this@TelegramService.authState
+        fun getLastAuthErrorFlow(): StateFlow<String?> = this@TelegramService.lastAuthError
         fun getNotifications(): NotificationCenter? = notifications
+
+        fun clearAuthError() { _lastAuthError.value = null }
+
+        fun submitPhoneNumber(phone: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.SetAuthenticationPhoneNumber(phone, null), ::routeAuthResult)
+        }
+
+        fun submitCode(code: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.CheckAuthenticationCode(code), ::routeAuthResult)
+        }
+
+        fun submitPassword(password: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.CheckAuthenticationPassword(password), ::routeAuthResult)
+        }
+
+        fun submitEmailAddress(email: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.SetAuthenticationEmailAddress(email), ::routeAuthResult)
+        }
+
+        fun submitEmailCode(code: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            val payload = TdApi.EmailAddressAuthenticationCode(code)
+            c.send(TdApi.CheckAuthenticationEmailCode(payload), ::routeAuthResult)
+        }
+
+        fun submitRegistration(firstName: String, lastName: String) {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.RegisterUser(firstName, lastName, false), ::routeAuthResult)
+        }
+
+        /** Restart the auth flow from scratch (e.g. user wants to use a different phone). */
+        fun resendAuthCode() {
+            val c = client ?: return
+            _lastAuthError.value = null
+            c.send(TdApi.ResendAuthenticationCode(), ::routeAuthResult)
+        }
 
         /** Returns (or lazily creates) the service-scoped ChatRepo. */
         fun getChatRepo(): ChatRepo? {
@@ -79,11 +135,12 @@ class TelegramService : LifecycleService() {
 
         lifecycleScope.launch {
             c.updates.filterIsInstance<TdApi.UpdateAuthorizationState>().collect { upd ->
-                Timber.tag("TG").i("auth=%s", upd.authorizationState.javaClass.simpleName)
-                _authorized.value = upd.authorizationState is TdApi.AuthorizationStateReady
-                if (upd.authorizationState is TdApi.AuthorizationStateClosed) {
-                    // BannerHost.show posts to main looper internally; safe to call from coroutine.
-                    BannerHost.show("Session ended. Re-pair via Mac.", BannerHost.Kind.WARN, 10_000)
+                val s = upd.authorizationState
+                Timber.tag("TG").i("auth=%s", s.javaClass.simpleName)
+                _authState.value = s
+                _authorized.value = s is TdApi.AuthorizationStateReady
+                if (s is TdApi.AuthorizationStateClosed) {
+                    BannerHost.show("Session ended. Sign in again.", BannerHost.Kind.WARN, 10_000)
                 }
             }
         }
@@ -95,6 +152,14 @@ class TelegramService : LifecycleService() {
         client?.close()
         client = null
         super.onDestroy()
+    }
+
+    private fun routeAuthResult(obj: TdApi.Object) {
+        if (obj is TdApi.Error) {
+            val msg = "${obj.code}: ${obj.message}"
+            Timber.tag("TG").w("auth error %s", msg)
+            _lastAuthError.value = msg
+        }
     }
 
     private fun buildOngoingNotif(): Notification {
