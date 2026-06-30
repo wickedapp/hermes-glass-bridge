@@ -97,7 +97,20 @@ class VoiceHelperBridge(port: Int = 0) {
     /** Full shutdown — call from activity/service onDestroy. */
     fun close() {
         cancel()
+        stopServerInline()   // synchronous stop before killing the executor
         timers.shutdownNow()
+    }
+
+    /**
+     * Stops the WebSocket server synchronously, inline.
+     * Used only from [close] where the timers executor may already be shut down.
+     * Normal session-end uses the async [stopServer] path instead.
+     */
+    private fun stopServerInline() {
+        val srv = server ?: return
+        server = null
+        serverStarted = false
+        runCatching { srv.stop(500) }
     }
 
     // -------------------------------------------------------------------------

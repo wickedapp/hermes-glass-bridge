@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity(), GestureSink {
     fun requireService(): TelegramService.LocalBinder =
         svc ?: error("TelegramService not yet bound")
 
+    /** Returns the current service binder, or null if not yet bound. Safe for cold-start. */
+    fun optionalService(): TelegramService.LocalBinder? = svc
+
     /** Opens a chat by ID; called from ChatListFragment adapter click. */
     fun openChat(chatId: Long) {
         val title = svc?.getChatRepo()?.chats?.value?.firstOrNull { it.id == chatId }?.title ?: ""

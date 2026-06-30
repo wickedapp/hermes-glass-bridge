@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.MessageRepo
+import com.wickedapp.rokidtg.service.TdLibClient
 import com.wickedapp.rokidtg.data.MsgRow
 import com.wickedapp.rokidtg.media.MediaPlayerPool
 import kotlinx.coroutines.flow.filterIsInstance
@@ -40,13 +41,14 @@ class ChatFragment : Fragment() {
     val chatId: Long get() = requireArguments().getLong(ARG_CHAT_ID)
     private val chatTitle: String get() = requireArguments().getString(ARG_CHAT_TITLE, "")
 
-    private val td get() = (requireActivity() as MainActivity).requireService().getClient()
+    private val td: TdLibClient?
+        get() = (requireActivity() as MainActivity).optionalService()?.getClient()
 
     private lateinit var adapter: MsgAdapter
 
     /** Service-scoped MessageRepo — retained across back-stack entries. */
     private val repo: MessageRepo? get() =
-        (requireActivity() as? MainActivity)?.requireService()?.getMessageRepo(chatId)
+        (requireActivity() as? MainActivity)?.optionalService()?.getMessageRepo(chatId)
 
     private var composer: ComposerOverlay? = null
     private var sendVoiceNote: ((java.io.File, Int, ByteArray) -> Unit)? = null

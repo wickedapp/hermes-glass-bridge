@@ -1,6 +1,7 @@
 package com.wickedapp.rokidtg.ui
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -47,6 +48,12 @@ class ChatListFragment : Fragment() {
         searchBar?.setOnClickListener {
             searchInput?.requestFocus()
         }
+        searchBar?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN &&
+                (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+                searchInput?.requestFocus(); true
+            } else false
+        }
 
         searchInput?.setOnEditorActionListener { _, _, _ ->
             val query = searchInput.text.toString().trim()
@@ -77,7 +84,7 @@ class ChatListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             r.chats.collect { adapter.submit(it) }
         }
-        lifecycleScope.launch { r.loadInitial() }
+        viewLifecycleOwner.lifecycleScope.launch { r.loadInitial() }
     }
 
     class Adapter(private val onClick: (Long) -> Unit) :
