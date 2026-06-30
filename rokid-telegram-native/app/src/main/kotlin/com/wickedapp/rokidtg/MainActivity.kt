@@ -50,12 +50,6 @@ class MainActivity : AppCompatActivity(), GestureSink {
                         .commitAllowingStateLoss()
                 })
                 .commitAllowingStateLoss()
-
-            // Clear/restore currentOpenChatId as the user navigates back to chat list.
-            supportFragmentManager.addOnBackStackChangedListener {
-                val f = supportFragmentManager.findFragmentById(binding.container.id)
-                svc?.getNotifications()?.currentOpenChatId = (f as? ChatFragment)?.chatId
-            }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             svc = null
@@ -69,6 +63,17 @@ class MainActivity : AppCompatActivity(), GestureSink {
         setContentView(binding.root)
         router = InputRouter(this, this)
         startForegroundService(Intent(this, TelegramService::class.java))
+
+        // Register backstack listener once in onCreate (not in onServiceConnected,
+        // which would leak listeners on each stop/start cycle).
+        // The lambda uses svc?.getNotifications() for safe null-handling.
+        supportFragmentManager.addOnBackStackChangedListener {
+            val f = supportFragmentManager.findFragmentById(binding.container.id)
+            svc?.getNotifications()?.currentOpenChatId = (f as? ChatFragment)?.chatId
+        }
+
+        // Handle deep-link from notification tap (cold-start).
+        handleDeepLink(intent)
     }
 
     override fun onStart() {
@@ -85,6 +90,21 @@ class MainActivity : AppCompatActivity(), GestureSink {
             svc = null
         }
         super.onStop()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val chatId = intent?.getLongExtra("openChatId", -1L)?.takeIf { it != -1L } ?: return
+        val client = svc?.getClient() ?: return
+        supportFragmentManager.beginTransaction()
+            .replace(binding.container.id, ChatFragment(client, chatId, ""))
+            .addToBackStack("chat:$chatId")
+            .commitAllowingStateLoss()
+        svc?.getNotifications()?.currentOpenChatId = chatId
     }
 
     override fun onResume() { super.onResume(); router.install() }
