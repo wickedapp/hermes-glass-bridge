@@ -27,6 +27,15 @@ class OggWriter(file: File, private val serial: Int = 0xACE0_BEEF.toInt()) {
         writePage(headerType, granulePos, listOf(packet))
     }
 
+    /**
+     * Write a zero-length EOS page (RFC 3533 §6 header_type=0x04, empty packet).
+     * Call this when there are no remaining samples to encode but an EOS marker is still required
+     * (e.g. recording length is an exact multiple of the 20 ms frame size).
+     */
+    fun writeEosMarker() {
+        writePage(headerType = 0x04, granule = granulePos, listOf(byteArrayOf()))
+    }
+
     fun close() {
         if (closed) return
         // Mark previous last page already written by caller via isLast=true.

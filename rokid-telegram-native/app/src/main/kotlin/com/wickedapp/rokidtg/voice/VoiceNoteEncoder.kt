@@ -49,14 +49,19 @@ class VoiceNoteEncoder(outFile: File) {
     }
 
     fun finishWithDuration(): Pair<Int, ByteArray> {
-        // Pad-and-flush any partial accumulated samples to one final frame
         if (frameAccum.isNotEmpty()) {
+            // Pad-and-flush any partial accumulated samples to one final frame with EOS flag.
             val frame = ShortArray(FRAME_SAMPLES_48K)
             for (i in 0 until FRAME_SAMPLES_48K) {
                 frame[i] = if (frameAccum.isNotEmpty()) frameAccum.removeFirst() else 0
             }
             val n = encoder.encode(frame, 0, FRAME_SAMPLES_48K, packetBuf, 0, packetBuf.size)
             if (n > 0) ogg.writePacket(packetBuf.copyOf(n), FRAME_SAMPLES_48K, isLast = true)
+            else ogg.writeEosMarker() // encoder returned 0 bytes but we still need EOS
+        } else {
+            // Recording was an exact multiple of 960-sample frames; all frames already drained
+            // in feed(). Write a synthetic zero-length EOS page so the Ogg stream is RFC 3533 conformant.
+            ogg.writeEosMarker()
         }
         ogg.close()
         val durationS = (totalInputSamples16k / AudioCapturer.SAMPLE_RATE).toInt()

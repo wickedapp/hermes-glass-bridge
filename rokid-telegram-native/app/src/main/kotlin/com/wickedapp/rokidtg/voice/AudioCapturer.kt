@@ -20,12 +20,9 @@ class AudioCapturer {
 
     @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
     fun start(onMono16k: (ShortArray) -> Unit) {
-        val minBuf = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_DEFAULT,
-            AudioFormat.ENCODING_PCM_16BIT,
-        )
-        val buf = maxOf(minBuf * 4, 8192)
+        // getMinBufferSize does not accept custom multi-channel masks reliably.
+        // Hardcode 80 ms of 8-channel 16-bit PCM @ 16 kHz = 25,600 bytes.
+        val buf = 8 /*channels*/ * 2 /*bytes per sample*/ * SAMPLE_RATE / 10 // 80ms
         val r = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.MIC)
             .setAudioFormat(

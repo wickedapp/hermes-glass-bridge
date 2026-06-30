@@ -59,9 +59,8 @@ dependencies {
     implementation("org.java-websocket:Java-WebSocket:1.5.4")
 
     // Concentus: pure-Java Opus codec for voice note encoding (no NDK required).
-    // Not on Maven Central; using JitPack multi-module build from lostromb/concentus@6c2328dc19.
-    // Group for sub-modules is com.github.lostromb.concentus (dot-separated), artifact is Concentus.
-    implementation("com.github.lostromb.concentus:Concentus:master-6c2328dc19-1")
+    // Committed as app/libs/concentus.jar (from lostromb/concentus@6c2328dc19) for portability.
+    implementation(files("libs/concentus.jar"))
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
