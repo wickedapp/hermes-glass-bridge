@@ -99,8 +99,10 @@ class ChatFragment : Fragment() {
             composer = ComposerOverlay(view, tdClient, chatId, bridge)
         }
 
-        // Auto-focus the composer so a paired BT keyboard can type immediately on open.
-        view.findViewById<android.widget.EditText>(R.id.composerInput)?.requestFocus()
+        // Default focus on the message list so SWIPE_FORWARD/BACK navigate messages
+        // straight away. BT keyboard users still get composer focus on first keystroke
+        // via MainActivity.dispatchKeyEvent → onPrintableKey.
+        list.post { list.requestFocus() }
 
         // Mic icon: tap = voice→text (same as two-finger double-tap gesture);
         // long-press = voice note (same as two-finger long-press gesture).
@@ -222,9 +224,31 @@ class ChatFragment : Fragment() {
     // Gesture / key forwarding
     // -------------------------------------------------------------------------
 
-    /** Called by MainActivity when SWIPE_BACK is received while this fragment is active. */
+    /**
+     * Called by MainActivity when SWIPE_BACK is received while this fragment is active.
+     * Walks focus toward the top of the message list one item at a time; once we're at
+     * the topmost loaded message (focusSearch UP would leave the list), fetches the
+     * next page of older history from TDLib instead of jumping to the header.
+     */
     fun pageUp() {
-        viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
+        val list = view?.findViewById<RecyclerView>(R.id.messages)
+        val cur = view?.findFocus()
+        val next = cur?.focusSearch(View.FOCUS_UP)
+        val staysInList = next != null && list != null && isDescendantOf(next, list)
+        if (cur != null && next != null && next !== cur && staysInList) {
+            next.requestFocus()
+        } else {
+            viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
+        }
+    }
+
+    private fun isDescendantOf(child: View, ancestor: View): Boolean {
+        var p: View? = child
+        while (p != null) {
+            if (p === ancestor) return true
+            p = (p.parent as? View)
+        }
+        return false
     }
 
     /**
@@ -329,29 +353,33 @@ class MsgAdapter(
     }
 
     class PhotoVH(v: View) : RecyclerView.ViewHolder(v) {
+        // Inner LinearLayout holds focus + bg highlight; wire click there so TAP-on-focused fires.
+        private val card: View = (v as ViewGroup).getChildAt(0)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
             hint.text = "(photo)"
-            itemView.setOnClickListener { onTap(row.fileId) }
+            card.setOnClickListener { onTap(row.fileId) }
         }
     }
 
     class VideoVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val card: View = (v as ViewGroup).getChildAt(0)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
             hint.text = "(video ${row.durationS}s)"
-            itemView.setOnClickListener { onTap(row.fileId) }
+            card.setOnClickListener { onTap(row.fileId) }
         }
     }
 
     class VoiceVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val card: View = (v as ViewGroup).getChildAt(0)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
             hint.text = "(voice ${row.durationS}s)"
-            itemView.setOnClickListener { onTap(row.fileId) }
+            card.setOnClickListener { onTap(row.fileId) }
         }
     }
 }
