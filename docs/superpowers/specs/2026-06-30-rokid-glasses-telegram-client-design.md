@@ -3,7 +3,7 @@
 **Date:** 2026-06-30  
 **Target device:** Rokid RG-glasses (`model: RG_glasses`, Android 12 / YodaOS-Sprite, Android Go base, 480 × 640 OLED, serial `1906092624100227`)  
 **Paired phone:** vivo X200 Ultra (Android)  
-**Status:** approved — ready for implementation planning
+**Status:** **implemented — v1 in [PR #1](https://github.com/wickedapp/hermes-glass-bridge/pull/1)** (rokid-tg-client branch, 31 commits across 16 plan tasks + 7 task-level fix waves + 2 whole-branch fix waves; 17/17 JVM unit tests pass; on-device smoke green). See `docs/superpowers/plans/2026-06-30-rokid-glasses-telegram-client.md` and `.superpowers/sdd/progress.md` for the per-task ledger.
 
 ## Goal
 

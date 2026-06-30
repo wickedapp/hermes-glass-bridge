@@ -1,35 +1,35 @@
-# Rokid Dev Console / Hermes Glass Bridge
+# hermes-glass-bridge
 
-Local bridge for turning Rokid Glasses into a Hermes / Claude / Codex development console.
+Mac + Rokid Glasses projects under one roof. Three independent products live here, each in its own directory:
 
-See the full development plan at `docs/DEV_CONSOLE_PLAN.md`.
+| Directory | Product | Status |
+|---|---|---|
+| `app/` + `android-app/` + `web/` | **Hermes Glass Terminal** — FastAPI bridge + Android WebView wrapper that turns the Rokid Glasses into a HUD terminal for Hermes Agent / Claude / Codex on the Mac. | Active (the original project; see `docs/DEV_CONSOLE_PLAN.md`). |
+| `rokid-telegram-native/` + `voice-helper/` | **Rokid Telegram (native)** — sideloaded bare-metal Android APK on the glasses that talks to Telegram directly (TDLib), plus a Sprite Ink companion that does on-device voice-to-text via Rokid's native ASR. Internet comes from the vivo X200 Ultra over BT-PAN. | **v1 in PR #1.** Spec: `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`. |
+| `rokid-telegram-app/` | Earlier glasses-side WebView prototype. | **Superseded.** Reference only. |
+| `rokid-telegram-phone-app/` | Earlier phone-side WebView companion. | **Superseded.** Reference only. |
+| `rokid-aiui-mic-test/` | Probe of the Rokid Sprite/Ink `SpeechRecognition` runtime. | Reference; pattern used by `voice-helper/`. |
 
-## What it does
+## Product 1 — Hermes Glass Terminal
 
-- Browser/Rokid-friendly AR terminal UI at `http://127.0.0.1:8765/`
+Local bridge that turns Rokid Glasses into a Hermes / Claude / Codex dev console.
+
+- Browser/Rokid AR terminal UI at `http://127.0.0.1:8765/`
 - WebSocket command channel at `/ws/glass`
 - `Hermes` mode: sends prompts to Hermes Agent API Server
 - `Sessions` mode: lists/attaches/sends input to Mac tmux sessions for Claude/Codex/shell workflows
 - `Claude` mode: runs Claude Code print mode (`claude -p`) in `~/HermesGlassProjects/<project>`
 - `Codex` session support: start/list/capture Codex tasks through tmux
-- `Terminal` mode: runs shell commands in `~/HermesGlassProjects/<project>` and streams output back to the HUD
+- `Terminal` mode: runs shell commands in `~/HermesGlassProjects/<project>`
 - `Rokid AIUI voice`: uses glasses-side `SpeechRecognition`; final transcript is sent as text to the bridge
 
-
-## Run
-
+### Run
 ```bash
 ./scripts/run.sh
 ```
+Open `http://127.0.0.1:8765/`.
 
-Open:
-
-```text
-http://127.0.0.1:8765/
-```
-
-## Env
-
+### Env
 ```bash
 export HERMES_API_BASE=http://127.0.0.1:8642/v1
 export HERMES_GLASS_WORKSPACE=~/HermesGlassProjects
@@ -37,107 +37,69 @@ export HOST=127.0.0.1
 export PORT=8765
 ```
 
-The bridge reads `API_SERVER_KEY` from `~/.hermes/.env` automatically, or use:
+Reads `API_SERVER_KEY` from `~/.hermes/.env` automatically, or set `HERMES_API_KEY=<key>`.
 
-```bash
-export HERMES_API_KEY=<your-api-server-key>
-```
-
-## Android / Rokid APK
-
-During USB development, use ADB reverse and the local loopback URL inside Rokid:
+### Glasses APK (Hermes Terminal)
 
 ```bash
 adb reverse tcp:8765 tcp:8765
-adb reverse tcp:60973 tcp:60973   # optional preview app port
 ```
+Then the Rokid WebView uses `http://127.0.0.1:8765/?glasses=1`. APK builds at `android-app/`. Full dev plan: `docs/DEV_CONSOLE_PLAN.md`.
 
-Then the Rokid WebView can use:
+## Product 2 — Rokid Telegram (native)
 
-```text
-http://127.0.0.1:8765/?glasses=1
-```
+A sideloaded Android APK that runs on the Rokid RG-glasses and acts as a Telegram client (chat list, open chat, text + photo + video + voice playback, BT keyboard / voice-to-text / voice note replies, off-chat notifications). Pair the glasses to your phone over Bluetooth; the phone provides internet via standard BT-PAN tethering. No phone-side companion app needed at runtime.
 
-Quick mirror launcher on this Mac:
-
+### Quick start
 ```bash
-~/Projects/hermes-glass-bridge/scripts/start-rokid-mirror.sh
+# 1. Get a Telegram api_id / api_hash at https://my.telegram.org/apps
+# 2. Write them into rokid-telegram-native/local.properties:
+#       tg.apiId=12345
+#       tg.apiHash=abc123...
+# 3. Build & install the APK
+cd rokid-telegram-native
+JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH \
+  ./gradlew :app:installDebug
+
+# 4. Push the Sprite Ink voice helper
+cd ..
+scripts/push-helper.sh
+
+# 5. One-time TDLib session seed (typing your phone number on the glasses HUD is awful;
+#    do it once on Mac and push the binlog into the app's data dir)
+scripts/seed-session.sh +<your-phone-number>
+
+# 6. Smoke test on the connected glasses
+scripts/glasses-smoke.sh
 ```
 
-or double-click `~/Desktop/Rokid Mirror.command`.
+Subdir READMEs: `rokid-telegram-native/README.md`, `voice-helper/README.md`. Design rules: `docs/ROKID_DESIGN_GUIDELINES.md`. Full spec + decisions log: `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`.
 
-### Glasses controls
+## Repo layout
 
-| Control | Action |
-| --- | --- |
-| `Enter` | send current input |
-| `Tab` / `Ctrl+M` | cycle Hermes → Claude → Terminal |
-| `Mic` / `Ctrl+Space` | start/stop voice recording |
-| `Edit` / `Auto` or `Ctrl+A` | voice transcript mode: edit before send vs auto-send to Claude |
-| `Ctrl+L` | clear HUD |
-| `/open URL` | navigate the Rokid WebView to a preview URL |
-
-Voice path on tested RG-glasses: WebView `MediaRecorder` → bridge `/stt` → local `faster-whisper` → transcript. Android `SpeechRecognizer` is not available on this device image.
-
-A first Android wrapper app is included at `android-app/`. It is a real launchable app named **Hermes Terminal**. Open it on Rokid, enter your Mac bridge URL, then tap **Connect**. The app loads the HUD terminal UI in a WebView; tap **HUD** to hide the app chrome and make it feel like a full-screen glasses terminal.
-
-Build:
-
-```bash
-cd android-app
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-export PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH
-./gradlew assembleDebug
 ```
-
-APK:
-
-```text
-android-app/app/build/outputs/apk/debug/app-debug.apk
+hermes-glass-bridge/
+├── app/                            Hermes bridge (FastAPI)
+├── web/                            Hermes HUD UI
+├── android-app/                    Hermes Terminal APK (WebView)
+├── rokid-telegram-native/          ← Rokid Telegram, native APK + Sprite Ink helper
+├── voice-helper/                   ← Sprite Ink voice→text companion (.aix)
+├── rokid-telegram-app/             [SUPERSEDED] earlier glasses WebView prototype
+├── rokid-telegram-phone-app/       [SUPERSEDED] earlier phone WebView companion
+├── rokid-aiui-mic-test/            Sprite Ink ASR probe (reference)
+├── scripts/
+│   ├── run.sh / run-lan.sh         Hermes bridge launchers
+│   ├── mirror-rokid.sh             scrcpy mirror (visual verification path on glasses)
+│   ├── screenshot-rokid.sh         scrcpy screenshot
+│   ├── seed-session.sh             ← TDLib login on Mac → adb push binlog
+│   ├── push-helper.sh              ← push voice-helper.aix to glasses
+│   └── glasses-smoke.sh            ← end-to-end smoke for the Telegram client
+├── docs/
+│   ├── DEV_CONSOLE_PLAN.md         Hermes Terminal dev plan
+│   ├── ROKID_DESIGN_GUIDELINES.md  Glasses UI rules (480x400 safe area, #40FF5E on #000, etc.)
+│   └── superpowers/
+│       ├── specs/                  Design specs
+│       └── plans/                  Implementation plans
+└── HANDOFF_ROKID_TELEGRAM.md       [SUPERSEDED] old direction; see spec instead
 ```
-
-Install when Rokid is connected with ADB:
-
-```bash
-adb install -r android-app/app/build/outputs/apk/debug/app-debug.apk
-```
-
-Important: `127.0.0.1` inside the Rokid app means the glasses device itself, not your Mac. For real use, run the bridge on LAN/Tailscale:
-
-```bash
-./scripts/run-lan.sh
-```
-
-Then enter:
-
-```text
-http://<mac-lan-or-tailscale-ip>:8765/
-```
-
-## Rokid WebSocket protocol
-
-For a native CXR-M app later, connect a WebSocket client to:
-
-```text
-ws://<mac-tailscale-ip>:8765/ws/glass
-```
-
-Send Hermes prompt:
-
-```json
-{"type":"agent_prompt","project":"default","text":"請確認眼鏡 terminal 已連上 Hermes"}
-```
-
-Send Claude Code prompt:
-
-```json
-{"type":"claude_prompt","project":"default","text":"build a snake game and run it on port 3000"}
-```
-
-Send terminal command:
-
-```json
-{"type":"shell_command","project":"default","command":"pwd && ls -la"}
-```
-
-The server streams events like `agent_delta`, `term_delta`, `agent_done`, and `term_done`.

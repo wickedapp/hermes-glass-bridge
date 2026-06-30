@@ -1,6 +1,17 @@
-# Handoff — Rokid Telegram Phone Companion
+# [SUPERSEDED] Handoff — Rokid Telegram Phone Companion
 
-**Date:** 2026-06-30 10:54 +08  
+> **STATUS — SUPERSEDED 2026-06-30.** The two direction-defining instructions in this file ("Rokid Telegram = phone-side companion APK" and "Do not continue the glasses-only Telegram WebView as product direction") were **both reversed** during a fresh brainstorming session. The current product is a **bare-metal native Android APK on the glasses** (`rokid-telegram-native/`) + a separate Sprite Ink voice helper (`voice-helper/`), with the phone providing internet via standard Bluetooth tethering (BT-PAN) — not via a custom companion app.
+>
+> Authoritative documents:
+> - **Design spec:** `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md` (locks the decisions, including why this handoff's direction was rejected — see decisions D1–D9 and the Non-goals section)
+> - **Implementation plan:** `docs/superpowers/plans/2026-06-30-rokid-glasses-telegram-client.md`
+> - **PR:** https://github.com/wickedapp/hermes-glass-bridge/pull/1
+>
+> The contents below are preserved for historical context only. Do not act on them.
+
+---
+
+**Date:** 2026-06-30 10:54 +08
 **Primary objective for next agent:** Continue phone-side Telegram companion APK validation and refinement.
 
 ## User Preference
