@@ -16,6 +16,8 @@ import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.data.MsgRow
 import com.wickedapp.rokidtg.data.TdClientFacade
 import com.wickedapp.rokidtg.media.MediaPlayerPool
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
@@ -100,19 +102,27 @@ class ChatFragment(
      * pushes [MediaViewerFragment] with the local file.
      */
     private fun downloadAndView(fileId: Int, kind: MediaViewerFragment.Kind) {
-        td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
-            if (result is TdApi.Error) {
-                Timber.tag("Media").e("DownloadFile failed: %d %s", result.code, result.message)
-            }
-        }
         viewLifecycleOwner.lifecycleScope.launch {
-            td.updates.collect { update ->
-                if (update is TdApi.UpdateFile && update.file.id == fileId) {
-                    val local = update.file.local ?: return@collect
-                    if (local.isDownloadingCompleted && local.path?.isNotEmpty() == true) {
-                        val file = File(local.path!!)
-                        openMediaViewer(file, kind)
-                        return@collect  // stop collecting — file arrived
+            // Subscribe BEFORE sending the request to avoid losing UpdateFile emissions
+            // that may fire synchronously when TDLib already has the file cached.
+            val updateJob = launch {
+                try {
+                    val update = td.updates
+                        .filterIsInstance<TdApi.UpdateFile>()
+                        .first { it.file.id == fileId && it.file.local.isDownloadingCompleted }
+                    openMediaViewer(File(update.file.local.path), kind)
+                } catch (e: Exception) {
+                    Timber.tag("Media").w(e, "UpdateFile collect cancelled or failed")
+                }
+            }
+            td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+                if (result is TdApi.Error) {
+                    Timber.tag("Media").e("DownloadFile failed: %d %s", result.code, result.message)
+                } else if (result is TdApi.File && result.local.isDownloadingCompleted) {
+                    // File was already cached — result arrives synchronously; cancel the flow collector.
+                    updateJob.cancel()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        openMediaViewer(File(result.local.path), kind)
                     }
                 }
             }
@@ -123,19 +133,27 @@ class ChatFragment(
      * Download [fileId] and play it via [MediaPlayerPool] once complete.
      */
     private fun downloadAndPlay(fileId: Int) {
-        td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
-            if (result is TdApi.Error) {
-                Timber.tag("Voice").e("DownloadFile failed: %d %s", result.code, result.message)
-            }
-        }
         viewLifecycleOwner.lifecycleScope.launch {
-            td.updates.collect { update ->
-                if (update is TdApi.UpdateFile && update.file.id == fileId) {
-                    val local = update.file.local ?: return@collect
-                    if (local.isDownloadingCompleted && local.path?.isNotEmpty() == true) {
-                        val file = File(local.path!!)
-                        playerPool.playVoice(file)
-                        return@collect
+            // Subscribe BEFORE sending the request to avoid losing UpdateFile emissions
+            // that may fire synchronously when TDLib already has the file cached.
+            val updateJob = launch {
+                try {
+                    val update = td.updates
+                        .filterIsInstance<TdApi.UpdateFile>()
+                        .first { it.file.id == fileId && it.file.local.isDownloadingCompleted }
+                    playerPool.playVoice(File(update.file.local.path))
+                } catch (e: Exception) {
+                    Timber.tag("Voice").w(e, "UpdateFile collect cancelled or failed")
+                }
+            }
+            td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+                if (result is TdApi.Error) {
+                    Timber.tag("Voice").e("DownloadFile failed: %d %s", result.code, result.message)
+                } else if (result is TdApi.File && result.local.isDownloadingCompleted) {
+                    // File was already cached — result arrives synchronously; cancel the flow collector.
+                    updateJob.cancel()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        playerPool.playVoice(File(result.local.path))
                     }
                 }
             }

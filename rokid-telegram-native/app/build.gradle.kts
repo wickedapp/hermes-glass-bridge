@@ -62,7 +62,6 @@ dependencies {
     // Committed as app/libs/concentus.jar (from lostromb/concentus@6c2328dc19) for portability.
     implementation(files("libs/concentus.jar"))
 
-    implementation("io.coil-kt:coil:2.5.0")
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-ui:1.2.1")
 
