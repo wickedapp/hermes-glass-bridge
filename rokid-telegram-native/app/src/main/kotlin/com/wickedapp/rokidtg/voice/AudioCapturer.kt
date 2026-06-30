@@ -57,9 +57,19 @@ class AudioCapturer {
             // Each frame: CHANNELS_TOTAL * sizeof(short) bytes; we keep ch 0/1 mixed to mono.
             val frame = ShortArray(1024 * CHANNELS_TOTAL)
             val mono = ShortArray(1024)
+            var consecutiveErrors = 0
             while (running) {
                 val read = r.read(frame, 0, frame.size, AudioRecord.READ_BLOCKING)
-                if (read <= 0) { Timber.w("AudioRecord read=%d", read); continue }
+                if (read <= 0) {
+                    Timber.w("AudioRecord read=%d", read)
+                    consecutiveErrors++
+                    if (consecutiveErrors >= 10) {
+                        onError?.invoke("audio_read_failed: read returned $read $consecutiveErrors times consecutively")
+                        break
+                    }
+                    continue
+                }
+                consecutiveErrors = 0
                 val frames = read / CHANNELS_TOTAL
                 for (i in 0 until frames) {
                     // mix ch 0 + ch 1 → mono with /2 to avoid clipping
