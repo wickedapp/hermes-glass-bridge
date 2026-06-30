@@ -22,9 +22,10 @@ class VoiceHelperBridgeTest {
             override fun onTimeout(stage: String) {}
         })
 
+        val nonce = bridge.sessionNonce
         val client = object : WebSocketClient(URI("ws://127.0.0.1:${bridge.boundPort}")) {
             override fun onOpen(h: ServerHandshake) {
-                send("""{"type":"ready"}""")
+                send("""{"type":"ready","nonce":"$nonce"}""")
                 readyL.countDown()
             }
             override fun onMessage(m: String?) {}
