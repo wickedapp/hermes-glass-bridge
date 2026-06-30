@@ -1,0 +1,6 @@
+{
+  "appId": "com.wickedapp.voicehelper",
+  "name": "Voice Helper",
+  "version": "0.1.0",
+  "pages": ["pages/voice/voice"]
+}
