@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.iml
+
+# Generated artifacts / runtime logs
+artifacts/
+logs/
+*.log
+*.tmp
+*.pid
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Hermes local runtime
+.hermes/tmp/
+.hermes/logs/

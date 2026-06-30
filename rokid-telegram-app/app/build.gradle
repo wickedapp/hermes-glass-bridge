@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.wickedapp.rokidtelegram'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId 'com.wickedapp.rokidtelegram'
+        minSdk 28
+        targetSdk 33
+        versionCode 1
+        versionName '0.1.0-webtg-voice'
+    }
+}
