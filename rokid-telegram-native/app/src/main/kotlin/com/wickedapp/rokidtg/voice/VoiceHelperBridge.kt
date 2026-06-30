@@ -34,8 +34,8 @@ class VoiceHelperBridge(port: Int = 48761) {
 
     private val timers = Executors.newSingleThreadScheduledExecutor()
     private val listener = AtomicReference<Listener?>(null)
-    private var readyTimer: ScheduledFuture<*>? = null
-    private var transcriptTimer: ScheduledFuture<*>? = null
+    @Volatile private var readyTimer: ScheduledFuture<*>? = null
+    @Volatile private var transcriptTimer: ScheduledFuture<*>? = null
 
     private val server = object : WebSocketServer(InetSocketAddress("127.0.0.1", actualPort)) {
         override fun onOpen(c: WebSocket, h: ClientHandshake?) {}
