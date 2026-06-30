@@ -27,6 +27,7 @@ class TelegramService : LifecycleService() {
 
     inner class LocalBinder : Binder() {
         fun getClient(): TdLibClient? = client
+        fun getAuthorizedFlow(): StateFlow<Boolean> = this@TelegramService.authorized
     }
 
     private val binder = LocalBinder()
