@@ -25,9 +25,13 @@ class TelegramService : LifecycleService() {
     private val _authorized = MutableStateFlow(false)
     val authorized: StateFlow<Boolean> = _authorized
 
+    var notifications: NotificationCenter? = null
+        private set
+
     inner class LocalBinder : Binder() {
         fun getClient(): TdLibClient? = client
         fun getAuthorizedFlow(): StateFlow<Boolean> = this@TelegramService.authorized
+        fun getNotifications(): NotificationCenter? = notifications
     }
 
     private val binder = LocalBinder()
@@ -48,6 +52,7 @@ class TelegramService : LifecycleService() {
             apiHash  = BuildConfig.TG_API_HASH,
         )
         client = c
+        notifications = NotificationCenter(this, c, lifecycleScope)
 
         lifecycleScope.launch {
             c.updates.filterIsInstance<TdApi.UpdateAuthorizationState>().collect { upd ->

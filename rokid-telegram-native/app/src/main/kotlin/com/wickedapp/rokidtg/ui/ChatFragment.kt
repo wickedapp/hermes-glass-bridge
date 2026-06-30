@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 class ChatFragment(
     private val td: TdClientFacade,
-    private val chatId: Long,
+    val chatId: Long,
     private val chatTitle: String,
 ) : Fragment() {
 

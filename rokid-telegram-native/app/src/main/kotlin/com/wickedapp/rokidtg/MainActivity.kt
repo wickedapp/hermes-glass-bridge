@@ -41,12 +41,21 @@ class MainActivity : AppCompatActivity(), GestureSink {
             supportFragmentManager.beginTransaction()
                 .replace(binding.container.id, ChatListFragment(repo) { chatId ->
                     val title = repo.chats.value.firstOrNull { it.id == chatId }?.title ?: ""
+                    // Set currentOpenChatId immediately when pushing the chat fragment,
+                    // before the back-stack listener fires.
+                    svc?.getNotifications()?.currentOpenChatId = chatId
                     supportFragmentManager.beginTransaction()
                         .replace(binding.container.id, ChatFragment(client, chatId, title))
                         .addToBackStack("chat:$chatId")
                         .commitAllowingStateLoss()
                 })
                 .commitAllowingStateLoss()
+
+            // Clear/restore currentOpenChatId as the user navigates back to chat list.
+            supportFragmentManager.addOnBackStackChangedListener {
+                val f = supportFragmentManager.findFragmentById(binding.container.id)
+                svc?.getNotifications()?.currentOpenChatId = (f as? ChatFragment)?.chatId
+            }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             svc = null
