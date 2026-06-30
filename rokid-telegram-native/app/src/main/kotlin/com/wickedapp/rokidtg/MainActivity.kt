@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
 import com.wickedapp.rokidtg.service.TelegramService
+import com.wickedapp.rokidtg.ui.ChatFragment
 import com.wickedapp.rokidtg.ui.ChatListFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
@@ -38,8 +39,12 @@ class MainActivity : AppCompatActivity(), GestureSink {
             // commitAllowingStateLoss: service can connect after onSaveInstanceState during
             // fast start/stop cycles; state loss is acceptable here (fragment is recreated on resume).
             supportFragmentManager.beginTransaction()
-                .replace(binding.container.id, ChatListFragment(repo) { id ->
-                    Timber.tag("ChatList").i("openChat %d", id)
+                .replace(binding.container.id, ChatListFragment(repo) { chatId ->
+                    val title = repo.chats.value.firstOrNull { it.id == chatId }?.title ?: ""
+                    supportFragmentManager.beginTransaction()
+                        .replace(binding.container.id, ChatFragment(client, chatId, title))
+                        .addToBackStack("chat:$chatId")
+                        .commitAllowingStateLoss()
                 })
                 .commitAllowingStateLoss()
         }
@@ -81,7 +86,10 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     override fun onGesture(g: SpriteBroadcast.Gesture): Boolean = when (g) {
         SpriteBroadcast.Gesture.SWIPE_FORWARD -> { focusNext(); true }
-        SpriteBroadcast.Gesture.SWIPE_BACK    -> { focusPrev(); true }
+        SpriteBroadcast.Gesture.SWIPE_BACK    -> {
+            val current = supportFragmentManager.findFragmentById(binding.container.id)
+            if (current is ChatFragment) { current.pageUp(); true } else { focusPrev(); true }
+        }
         SpriteBroadcast.Gesture.TAP           -> { currentFocus?.performClick(); true }
         SpriteBroadcast.Gesture.BACK          -> { onBackPressedDispatcher.onBackPressed(); true }
         else -> false
