@@ -28,9 +28,15 @@ class FakeChatTdLib : TdClientFacade {
 
     // Queued chat rows to deliver when GetChats + GetChat are called
     private var queuedChats: List<ChatRow> = emptyList()
+    // Queued search results to deliver for SearchChatsOnServer
+    private var queuedSearchIds: LongArray = LongArray(0)
 
     fun queueChats(chats: List<ChatRow>) {
         queuedChats = chats
+    }
+
+    fun queueSearchResults(chatIds: LongArray) {
+        queuedSearchIds = chatIds
     }
 
     override fun send(query: TdApi.Function<*>, handler: (TdApi.Object) -> Unit) {
@@ -54,8 +60,7 @@ class FakeChatTdLib : TdClientFacade {
                 }
             }
             is TdApi.SearchChatsOnServer -> {
-                // Not tested in ChatRepoTest; return empty
-                handler(TdApi.Chats(0, LongArray(0)))
+                handler(TdApi.Chats(queuedSearchIds.size, queuedSearchIds))
             }
             else -> {
                 // ignore unknown queries

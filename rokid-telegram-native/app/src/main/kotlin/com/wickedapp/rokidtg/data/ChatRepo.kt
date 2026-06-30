@@ -63,6 +63,7 @@ class ChatRepo(private val td: TdClientFacade, private val scope: CoroutineScope
                     td.send(TdApi.GetChat(id)) { c ->
                         if (c is TdApi.Chat) {
                             out[c.id] = chatToRow(c)
+                            upsert(c)
                         }
                         if (remaining.decrementAndGet() == 0) {
                             cont.resumeWith(

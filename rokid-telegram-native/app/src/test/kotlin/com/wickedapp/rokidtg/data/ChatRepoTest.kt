@@ -31,4 +31,18 @@ class ChatRepoTest {
         assertEquals(listOf(1L, 2L), repo.chats.first().map { it.id })
         repoScope.cancel()
     }
+
+    @Test fun search_populates_live_cache() = runTest {
+        val td = FakeChatTdLib()
+        val repoScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val repo = ChatRepo(td, repoScope)
+        td.queueChats(listOf(
+            ChatRow(42, "Charlie", "hello world", 0, 5_000),
+        ))
+        td.queueSearchResults(longArrayOf(42L))
+        repo.search("hello")
+        advanceUntilIdle()
+        assertEquals(listOf(42L), repo.chats.first().map { it.id })
+        repoScope.cancel()
+    }
 }
