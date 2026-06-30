@@ -1,5 +1,6 @@
 package com.wickedapp.rokidtg.service
 
+import com.wickedapp.rokidtg.data.TdClientFacade
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,9 +28,9 @@ class TdLibClient(
     deviceModel: String = "Rokid Glasses",
     appVersion: String = "0.1.0",
     systemLangCode: String = "en",
-) {
+) : TdClientFacade {
     private val _updates = MutableSharedFlow<TdApi.Update>(extraBufferCapacity = 128)
-    val updates = _updates.asSharedFlow()
+    override val updates = _updates.asSharedFlow()
     private val scope = CoroutineScope(Dispatchers.Default)
 
     private val client: Client = Client.create(
@@ -67,7 +68,7 @@ class TdLibClient(
         send(TdApi.SetOption("storage_max_files_size", TdApi.OptionValueInteger(500_000_000L))) {}
     }
 
-    fun send(query: TdApi.Function<*>, handler: (TdApi.Object) -> Unit) {
+    override fun send(query: TdApi.Function<*>, handler: (TdApi.Object) -> Unit) {
         client.send(query) { obj -> handler(obj) }
     }
 

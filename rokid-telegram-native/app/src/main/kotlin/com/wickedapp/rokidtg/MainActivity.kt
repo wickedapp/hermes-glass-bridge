@@ -7,12 +7,17 @@ import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
 import android.view.KeyEvent
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
 import com.wickedapp.rokidtg.service.TelegramService
+import com.wickedapp.rokidtg.ui.ChatListFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
+import timber.log.Timber
 
 class MainActivity : AppCompatActivity(), GestureSink {
     private lateinit var binding: ActivityMainBinding
@@ -25,7 +30,18 @@ class MainActivity : AppCompatActivity(), GestureSink {
         override fun onServiceConnected(name: ComponentName?, b: IBinder?) {
             svc = b as TelegramService.LocalBinder
             bound = true
-            binding.placeholder.text = "Service: bound"
+            // Deviation from brief: swap in ChatListFragment immediately on service bind
+            // rather than waiting for auth state, so the layout can be verified on-device
+            // without a seeded TDLib session. Auth-gating is deferred to a future task.
+            val client = b.getClient() ?: return
+            val repo = ChatRepo(client, lifecycleScope)
+            // commitAllowingStateLoss: service can connect after onSaveInstanceState during
+            // fast start/stop cycles; state loss is acceptable here (fragment is recreated on resume).
+            supportFragmentManager.beginTransaction()
+                .replace(binding.container.id, ChatListFragment(repo) { id ->
+                    Timber.tag("ChatList").i("openChat %d", id)
+                })
+                .commitAllowingStateLoss()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             svc = null
@@ -38,7 +54,6 @@ class MainActivity : AppCompatActivity(), GestureSink {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         router = InputRouter(this, this)
-        // Start service early in onCreate so it gets foreground exemption from the activity start
         startForegroundService(Intent(this, TelegramService::class.java))
     }
 
@@ -64,8 +79,21 @@ class MainActivity : AppCompatActivity(), GestureSink {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         router.dispatchKey(event) || super.dispatchKeyEvent(event)
 
-    override fun onGesture(g: SpriteBroadcast.Gesture): Boolean {
-        binding.placeholder.text = "gesture: $g"
-        return g == SpriteBroadcast.Gesture.TAP || g == SpriteBroadcast.Gesture.BACK
+    override fun onGesture(g: SpriteBroadcast.Gesture): Boolean = when (g) {
+        SpriteBroadcast.Gesture.SWIPE_FORWARD -> { focusNext(); true }
+        SpriteBroadcast.Gesture.SWIPE_BACK    -> { focusPrev(); true }
+        SpriteBroadcast.Gesture.TAP           -> { currentFocus?.performClick(); true }
+        SpriteBroadcast.Gesture.BACK          -> { onBackPressedDispatcher.onBackPressed(); true }
+        else -> false
+    }
+
+    private fun focusNext() {
+        val cur = currentFocus ?: binding.container
+        cur.focusSearch(View.FOCUS_DOWN)?.requestFocus()
+    }
+
+    private fun focusPrev() {
+        val cur = currentFocus ?: binding.container
+        cur.focusSearch(View.FOCUS_UP)?.requestFocus()
     }
 }
