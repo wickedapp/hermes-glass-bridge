@@ -6,7 +6,7 @@
 
 **Architecture:** Single Android process. `MainActivity` swaps fragments; a same-process foreground `TelegramService` owns the TDLib JNI client, the localhost WebSocket bridge that receives transcripts from a separately-installed Sprite Ink `voice-helper.aix` companion, and the audio capture pipeline that records OGG/Opus voice notes. Internet comes either from the glasses' own Wi-Fi or from a `bt-pan` interface activated by the vivo X200 Ultra's Bluetooth tethering.
 
-**Tech Stack:** Kotlin 1.9, Android Gradle Plugin 8.x, `minSdk 28`, `targetSdk 33`. TDLib (arm64-v8a JNI). AndroidX Media3 1.x (ExoPlayer). Coil 2.x (images). Java-WebSocket 1.5.x (loopback server). Timber (logging). Sprite Ink (separate, for the voice helper). No Compose.
+**Tech Stack:** Kotlin 1.9, Android Gradle Plugin 8.x, `minSdk 28`, `targetSdk 34` (originally 33; bumped during Task 13 because Media3 1.2.1 requires it. Verified: minSdk 28 unchanged so behavior on the API 28 glasses is identical; FGS_DATA_SYNC permission already added in Task 4 covers the API 34 foreground service requirement). TDLib (arm64-v8a JNI). AndroidX Media3 1.x (ExoPlayer). Java-WebSocket 1.5.x (loopback server). Timber (logging). Sprite Ink (separate, for the voice helper). No Compose. No Coil (Task 13 used `BitmapFactory` directly; Coil was declared but unused and is being removed in the Task 13 fix wave).
 
 ## Global Constraints
 
@@ -21,6 +21,7 @@
 - Audio capture: `AudioRecord` with `sampleRate=16000`, `channelMask=0x6000FC`, `encoding=PCM_16BIT`. Keep channels 0/1 (post-AEC), drop 2-7.
 - Input: register `BroadcastReceiver(priority=100)` for `com.android.action.ACTION_SPRITE_*`; `KEYCODE_ENTER` / `KEYCODE_BACK` via `onKeyDown`. Cannot intercept: `ACTION_SPRITE_BUTTON_DOUBLE_CLICK` (system back), `ACTION_AI_START` (system AI), upper button click / long-press (camera / video).
 - Test on real glasses with `adb -s 1906092624100227`. Build env: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`, `ANDROID_HOME=$HOME/Library/Android/sdk`.
+- **`adb shell screencap`, `adb shell screenrecord`, and `adb shell uiautomator dump` ALL produce empty/all-black output on this Rokid device** (the optical engine is not exposed to standard Android capture). Plan steps that reference `exec-out screencap -p > file.png` should be **skipped** by implementers — use `adb logcat -d -s <tag>`, `dumpsys activity activities | grep ResumedActivity`, JVM unit tests, and `am start -W` exit status for functional verification instead. For genuine visual verification, the user (controller) will mirror via scrcpy or wear the glasses; do NOT block a task on a visual check.
 - Commit per task. Commit messages: conventional (`feat:`, `chore:`, `test:`, etc.). Do NOT push.
 
 ---
