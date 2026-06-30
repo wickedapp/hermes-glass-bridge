@@ -1,14 +1,18 @@
 package com.wickedapp.rokidtg
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import android.view.KeyEvent
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
@@ -71,6 +75,13 @@ class MainActivity : AppCompatActivity(), GestureSink {
         setContentView(binding.root)
         router = InputRouter(this, this)
         startForegroundService(Intent(this, TelegramService::class.java))
+
+        // Request RECORD_AUDIO at runtime (declared in manifest since Task 4).
+        // If denied, voice notes silently fail; BannerHost (Task 15) will surface the error.
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
 
         // Register backstack listener once in onCreate (not in onServiceConnected,
         // which would leak listeners on each stop/start cycle).
@@ -138,6 +149,11 @@ class MainActivity : AppCompatActivity(), GestureSink {
         SpriteBroadcast.Gesture.TWO_DOUBLE_TAP -> {
             val f = supportFragmentManager.findFragmentById(binding.container.id)
             (f as? ChatFragment)?.onVoiceToggle()?.let { true } ?: false
+        }
+        SpriteBroadcast.Gesture.SETTINGS -> {
+            val f = supportFragmentManager.findFragmentById(binding.container.id)
+            (f as? ChatFragment)?.onVoiceNoteToggle()
+            true
         }
         else -> false
     }

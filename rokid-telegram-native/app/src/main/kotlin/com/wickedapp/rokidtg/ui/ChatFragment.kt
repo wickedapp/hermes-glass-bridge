@@ -15,6 +15,9 @@ import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.data.MsgRow
 import com.wickedapp.rokidtg.data.TdClientFacade
 import kotlinx.coroutines.launch
+import org.drinkless.tdlib.TdApi
+import timber.log.Timber
+import androidx.annotation.RequiresPermission
 
 class ChatFragment(
     private val td: TdClientFacade,
@@ -25,6 +28,7 @@ class ChatFragment(
     private lateinit var adapter: MsgAdapter
     private lateinit var repo: MessageRepo
     private var composer: ComposerOverlay? = null
+    private var sendVoiceNote: ((java.io.File, Int, ByteArray) -> Unit)? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View =
         inflater.inflate(R.layout.fragment_chat, container, false)
@@ -51,10 +55,29 @@ class ChatFragment(
         if (bridge != null) {
             composer = ComposerOverlay(view, td, chatId, bridge)
         }
+
+        // Voice-note send callback used by ComposerOverlay.stopAndSendVoiceNote.
+        sendVoiceNote = { file, dur, wave ->
+            td.send(TdApi.SendMessage().apply {
+                this.chatId = this@ChatFragment.chatId
+                inputMessageContent = TdApi.InputMessageVoiceNote().apply {
+                    voiceNote = TdApi.InputFileLocal(file.absolutePath)
+                    duration = dur
+                    waveform = wave
+                    caption = null
+                    selfDestructType = null
+                }
+            }) { result ->
+                if (result is TdApi.Error) {
+                    Timber.tag("VoiceNote").e("sendVoiceNote failed: %d %s", result.code, result.message)
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
         composer = null
+        sendVoiceNote = null
         super.onDestroyView()
     }
 
@@ -68,6 +91,20 @@ class ChatFragment(
      * Returns true if the overlay handled the toggle (i.e. this fragment is active).
      */
     fun onVoiceToggle(): Boolean = composer?.toggleVoice() ?: false
+
+    /**
+     * Called by MainActivity on SETTINGS gesture (two-finger long-press).
+     * Toggles hold-to-record voice note mode: first call starts recording, second stops and sends.
+     */
+    fun onVoiceNoteToggle() {
+        val c = composer ?: return
+        val cb = sendVoiceNote ?: return
+        if (c.isRecording()) {
+            c.stopAndSendVoiceNote(cb)
+        } else {
+            c.startVoiceNote(cb)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -4,12 +4,16 @@ import android.content.Intent
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.RequiresPermission
 import androidx.core.view.isVisible
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.TdClientFacade
+import com.wickedapp.rokidtg.voice.AudioCapturer
 import com.wickedapp.rokidtg.voice.VoiceHelperBridge
+import com.wickedapp.rokidtg.voice.VoiceNoteEncoder
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
+import java.io.File
 
 /**
  * Manages the composer overlay bar (overlay_composer.xml) that appears at the bottom of
@@ -33,9 +37,47 @@ class ComposerOverlay(
     private var active = false
     private var finalTranscript: String? = null
 
+    // Voice-note recording state (separate from voice→text mode)
+    @Volatile private var recording = false
+    private var capturer: AudioCapturer? = null
+    private var encoder: VoiceNoteEncoder? = null
+    private var outFile: File? = null
+
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
+
+    /** Returns true if a voice note is currently being recorded. */
+    fun isRecording(): Boolean = recording
+
+    /** Start recording a voice note. Caller is responsible for holding RECORD_AUDIO permission. */
+    @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
+    fun startVoiceNote(@Suppress("UNUSED_PARAMETER") onSendVoiceNote: (File, Int, ByteArray) -> Unit) {
+        if (recording) return
+        show()
+        transcriptTv.text = "录音中…"
+        val f = File(root.context.filesDir, "voice/out-${System.currentTimeMillis()}.ogg")
+            .also { it.parentFile?.mkdirs() }
+        outFile = f
+        encoder = VoiceNoteEncoder(f)
+        capturer = AudioCapturer().also { cap ->
+            cap.start { pcm -> encoder?.feed(pcm) }
+        }
+        recording = true
+    }
+
+    /** Stop recording and send the voice note via the provided callback. */
+    fun stopAndSendVoiceNote(onSendVoiceNote: (File, Int, ByteArray) -> Unit) {
+        if (!recording) return
+        recording = false
+        capturer?.stop(); capturer = null
+        val enc = encoder ?: run { hide(); return }
+        encoder = null
+        val (dur, wave) = enc.finishWithDuration()
+        val file = outFile ?: run { hide(); return }
+        onSendVoiceNote(file, dur, wave)
+        hide()
+    }
 
     /** Called by ChatFragment.onVoiceToggle(). Returns true if consumed. */
     fun toggleVoice(): Boolean {
