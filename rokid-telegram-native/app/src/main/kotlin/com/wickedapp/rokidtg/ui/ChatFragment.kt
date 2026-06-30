@@ -15,10 +15,11 @@ import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.data.MsgRow
 import com.wickedapp.rokidtg.data.TdClientFacade
+import com.wickedapp.rokidtg.media.MediaPlayerPool
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
-import androidx.annotation.RequiresPermission
+import java.io.File
 
 class ChatFragment(
     private val td: TdClientFacade,
@@ -31,6 +32,9 @@ class ChatFragment(
     private var composer: ComposerOverlay? = null
     private var sendVoiceNote: ((java.io.File, Int, ByteArray) -> Unit)? = null
 
+    /** Lazily-created single-slot player for incoming voice notes. */
+    private val playerPool: MediaPlayerPool by lazy { MediaPlayerPool(requireContext()) }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View =
         inflater.inflate(R.layout.fragment_chat, container, false)
 
@@ -41,7 +45,11 @@ class ChatFragment(
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
             stackFromEnd = true   // newest message at bottom
         }
-        adapter = MsgAdapter()
+        adapter = MsgAdapter(
+            onOpenPhoto = { fileId -> downloadAndView(fileId, MediaViewerFragment.Kind.PHOTO) },
+            onOpenVideo = { fileId -> downloadAndView(fileId, MediaViewerFragment.Kind.VIDEO) },
+            onPlayVoice = { fileId -> downloadAndPlay(fileId) },
+        )
         list.adapter = adapter
 
         repo = MessageRepo(td, chatId, viewLifecycleOwner.lifecycleScope)
@@ -81,6 +89,69 @@ class ChatFragment(
         sendVoiceNote = null
         super.onDestroyView()
     }
+
+    // -------------------------------------------------------------------------
+    // Media download + open helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fire-and-forget DownloadFile for [fileId] at priority 32.
+     * Observes [TdApi.UpdateFile] updates until download completes, then
+     * pushes [MediaViewerFragment] with the local file.
+     */
+    private fun downloadAndView(fileId: Int, kind: MediaViewerFragment.Kind) {
+        td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+            if (result is TdApi.Error) {
+                Timber.tag("Media").e("DownloadFile failed: %d %s", result.code, result.message)
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            td.updates.collect { update ->
+                if (update is TdApi.UpdateFile && update.file.id == fileId) {
+                    val local = update.file.local ?: return@collect
+                    if (local.isDownloadingCompleted && local.path?.isNotEmpty() == true) {
+                        val file = File(local.path!!)
+                        openMediaViewer(file, kind)
+                        return@collect  // stop collecting — file arrived
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Download [fileId] and play it via [MediaPlayerPool] once complete.
+     */
+    private fun downloadAndPlay(fileId: Int) {
+        td.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+            if (result is TdApi.Error) {
+                Timber.tag("Voice").e("DownloadFile failed: %d %s", result.code, result.message)
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            td.updates.collect { update ->
+                if (update is TdApi.UpdateFile && update.file.id == fileId) {
+                    val local = update.file.local ?: return@collect
+                    if (local.isDownloadingCompleted && local.path?.isNotEmpty() == true) {
+                        val file = File(local.path!!)
+                        playerPool.playVoice(file)
+                        return@collect
+                    }
+                }
+            }
+        }
+    }
+
+    private fun openMediaViewer(file: File, kind: MediaViewerFragment.Kind) {
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.container, MediaViewerFragment(file, kind))
+            .addToBackStack("media")
+            .commitAllowingStateLoss()
+    }
+
+    // -------------------------------------------------------------------------
+    // Gesture / key forwarding
+    // -------------------------------------------------------------------------
 
     /** Called by MainActivity when SWIPE_BACK is received while this fragment is active. */
     fun pageUp() {
@@ -125,7 +196,16 @@ class ChatFragment(
 // Adapter
 // ---------------------------------------------------------------------------
 
-class MsgAdapter : RecyclerView.Adapter<MsgAdapter.TextVH>() {
+private const val VT_TEXT  = 0
+private const val VT_PHOTO = 1
+private const val VT_VIDEO = 2
+private const val VT_VOICE = 3
+
+class MsgAdapter(
+    private val onOpenPhoto: (Int) -> Unit = {},
+    private val onOpenVideo: (Int) -> Unit = {},
+    private val onPlayVoice: (Int) -> Unit = {},
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val rows = mutableListOf<MsgRow>()
 
@@ -137,29 +217,72 @@ class MsgAdapter : RecyclerView.Adapter<MsgAdapter.TextVH>() {
 
     override fun getItemCount(): Int = rows.size
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TextVH {
-        val v = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_message_text, parent, false)
-        return TextVH(v)
+    override fun getItemViewType(position: Int): Int = when (rows[position]) {
+        is MsgRow.Photo       -> VT_PHOTO
+        is MsgRow.Video       -> VT_VIDEO
+        is MsgRow.Voice       -> VT_VOICE
+        is MsgRow.Text,
+        is MsgRow.Unsupported -> VT_TEXT
     }
 
-    override fun onBindViewHolder(holder: TextVH, position: Int) {
-        holder.bind(rows[position])
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            VT_PHOTO -> PhotoVH(inflater.inflate(R.layout.item_message_photo, parent, false))
+            VT_VIDEO -> VideoVH(inflater.inflate(R.layout.item_message_video, parent, false))
+            VT_VOICE -> VoiceVH(inflater.inflate(R.layout.item_message_voice, parent, false))
+            else     -> TextVH(inflater.inflate(R.layout.item_message_text, parent, false))
+        }
     }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val row = rows[position]
+        when (holder) {
+            is TextVH  -> holder.bind(row)
+            is PhotoVH -> holder.bind(row as MsgRow.Photo, onOpenPhoto)
+            is VideoVH -> holder.bind(row as MsgRow.Video, onOpenVideo)
+            is VoiceVH -> holder.bind(row as MsgRow.Voice, onPlayVoice)
+        }
+    }
+
+    // ---- View Holders -------------------------------------------------------
 
     class TextVH(v: View) : RecyclerView.ViewHolder(v) {
-        private val txt: TextView = v.findViewById(R.id.text)
+        private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
         fun bind(row: MsgRow) {
-            // Task 13 will split into per-type ViewHolders with dedicated layouts.
-            // For v1 we render all types in the single text cell with descriptive placeholders.
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
-                is MsgRow.Photo       -> "(photo)"
-                is MsgRow.Video       -> "(video)"
-                is MsgRow.Voice       -> "(voice note)"
                 is MsgRow.Unsupported -> "(${row.label})"
+                else                  -> "(unsupported)"
             }
+        }
+    }
+
+    class PhotoVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val hint: android.widget.TextView = v.findViewById(R.id.hint)
+
+        fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
+            hint.text = "(photo)"
+            itemView.setOnClickListener { onTap(row.fileId) }
+        }
+    }
+
+    class VideoVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val hint: android.widget.TextView = v.findViewById(R.id.hint)
+
+        fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
+            hint.text = "(video ${row.durationS}s)"
+            itemView.setOnClickListener { onTap(row.fileId) }
+        }
+    }
+
+    class VoiceVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val hint: android.widget.TextView = v.findViewById(R.id.hint)
+
+        fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
+            hint.text = "(voice ${row.durationS}s)"
+            itemView.setOnClickListener { onTap(row.fileId) }
         }
     }
 }

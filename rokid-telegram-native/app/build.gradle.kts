@@ -12,12 +12,12 @@ val localProps = Properties().apply {
 
 android {
     namespace = "com.wickedapp.rokidtg"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.wickedapp.rokidtg"
         minSdk = 28
-        targetSdk = 33
+        targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
         ndk { abiFilters += listOf("arm64-v8a") }
@@ -61,6 +61,10 @@ dependencies {
     // Concentus: pure-Java Opus codec for voice note encoding (no NDK required).
     // Committed as app/libs/concentus.jar (from lostromb/concentus@6c2328dc19) for portability.
     implementation(files("libs/concentus.jar"))
+
+    implementation("io.coil-kt:coil:2.5.0")
+    implementation("androidx.media3:media3-exoplayer:1.2.1")
+    implementation("androidx.media3:media3-ui:1.2.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
