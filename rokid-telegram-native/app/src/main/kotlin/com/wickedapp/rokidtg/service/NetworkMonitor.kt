@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import com.wickedapp.rokidtg.ui.BannerHost
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 
@@ -20,6 +21,8 @@ class NetworkMonitor(ctx: Context, private val td: TdLibClient) {
             override fun onLost(network: Network) {
                 Timber.tag("Net").i("lost net=%s", network)
                 td.send(TdApi.SetNetworkType(TdApi.NetworkTypeNone())) {}
+                // BannerHost.show posts to main looper internally; safe from callback thread.
+                BannerHost.show("Offline")
             }
         })
     }

@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.databinding.ActivityMainBinding
 import com.wickedapp.rokidtg.service.TelegramService
+import com.wickedapp.rokidtg.ui.BannerHost
 import com.wickedapp.rokidtg.ui.ChatFragment
 import com.wickedapp.rokidtg.ui.ChatListFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
@@ -34,6 +35,12 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     /** Lazily created, shared VoiceHelperBridge. Closed in onDestroy. */
     private var voiceBridge: VoiceHelperBridge? = null
+
+    /**
+     * Set to true when voice helper ready-timeout fires; disables Path 1 (voice→text)
+     * for the rest of the session so the user isn't stuck re-triggering a broken helper.
+     */
+    var voiceHelperDisabled: Boolean = false
 
     fun getOrCreateBridge(): VoiceHelperBridge {
         return voiceBridge ?: VoiceHelperBridge().also { voiceBridge = it }
@@ -73,6 +80,7 @@ class MainActivity : AppCompatActivity(), GestureSink {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        BannerHost.attach(this)
         router = InputRouter(this, this)
         startForegroundService(Intent(this, TelegramService::class.java))
 

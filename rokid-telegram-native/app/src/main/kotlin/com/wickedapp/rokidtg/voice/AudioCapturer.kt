@@ -19,7 +19,7 @@ class AudioCapturer {
     private var thread: Thread? = null
 
     @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
-    fun start(onMono16k: (ShortArray) -> Unit) {
+    fun start(onMono16k: (ShortArray) -> Unit, onError: ((String) -> Unit)? = null) {
         // getMinBufferSize does not accept custom multi-channel masks reliably.
         // Hardcode 80 ms of 8-channel 16-bit PCM @ 16 kHz = 25,600 bytes.
         val buf = 8 /*channels*/ * 2 /*bytes per sample*/ * SAMPLE_RATE / 10 // 80ms
@@ -34,7 +34,25 @@ class AudioCapturer {
             ).setBufferSizeInBytes(buf).build()
         rec = r
         running = true
-        r.startRecording()
+        try {
+            r.startRecording()
+        } catch (e: IllegalStateException) {
+            Timber.tag("AudioCapturer").w(e, "startRecording failed — mic busy")
+            running = false
+            rec = null
+            r.release()
+            onError?.invoke("mic_busy")
+            return
+        }
+        // Verify recording actually started (ERROR_INVALID_OPERATION sets state to STOPPED).
+        if (r.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            Timber.tag("AudioCapturer").w("startRecording did not start — mic busy (state=%d)", r.recordingState)
+            running = false
+            rec = null
+            r.release()
+            onError?.invoke("mic_busy")
+            return
+        }
         thread = Thread {
             // Each frame: CHANNELS_TOTAL * sizeof(short) bytes; we keep ch 0/1 mixed to mono.
             val frame = ShortArray(1024 * CHANNELS_TOTAL)

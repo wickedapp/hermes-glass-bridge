@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.BuildConfig
 import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.ui.BannerHost
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance
@@ -59,6 +60,10 @@ class TelegramService : LifecycleService() {
             c.updates.filterIsInstance<TdApi.UpdateAuthorizationState>().collect { upd ->
                 Timber.tag("TG").i("auth=%s", upd.authorizationState.javaClass.simpleName)
                 _authorized.value = upd.authorizationState is TdApi.AuthorizationStateReady
+                if (upd.authorizationState is TdApi.AuthorizationStateClosed) {
+                    // BannerHost.show posts to main looper internally; safe to call from coroutine.
+                    BannerHost.show("Session ended. Re-pair via Mac.", BannerHost.Kind.WARN, 10_000)
+                }
             }
         }
     }

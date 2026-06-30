@@ -8,8 +8,10 @@ import android.widget.TextView
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresPermission
 import androidx.core.view.isVisible
+import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.TdClientFacade
+import com.wickedapp.rokidtg.ui.BannerHost
 import com.wickedapp.rokidtg.voice.AudioCapturer
 import com.wickedapp.rokidtg.voice.VoiceHelperBridge
 import com.wickedapp.rokidtg.voice.VoiceNoteEncoder
@@ -84,7 +86,19 @@ class ComposerOverlay(
         outFile = f
         encoder = VoiceNoteEncoder(f)
         capturer = AudioCapturer().also { cap ->
-            cap.start { pcm -> encoder?.feed(pcm) }
+            cap.start(
+                onMono16k = { pcm -> encoder?.feed(pcm) },
+                onError = {
+                    // Mic grabbed by another app or system; surface to user via banner.
+                    BannerHost.show("Mic in use by system", BannerHost.Kind.WARN)
+                    root.post {
+                        recording = false
+                        capturer = null
+                        encoder = null
+                        hide()
+                    }
+                }
+            )
         }
         recording = true
     }
@@ -121,6 +135,12 @@ class ComposerOverlay(
     // -------------------------------------------------------------------------
 
     private fun startVoice() {
+        // Disable Path 1 for rest of session if voice helper previously timed out on ready.
+        val activity = root.context as? MainActivity
+        if (activity?.voiceHelperDisabled == true) {
+            BannerHost.show("Voice helper not ready", BannerHost.Kind.WARN)
+            return
+        }
         active = true
         finalTranscript = null
         setTranscript("", isFinal = false)
@@ -152,7 +172,17 @@ class ComposerOverlay(
 
             override fun onTimeout(stage: String) {
                 Timber.tag("Voice").w("bridge timeout at stage=%s", stage)
-                root.post { cancel() }
+                root.post {
+                    when (stage) {
+                        "ready" -> {
+                            BannerHost.show("Voice helper not ready", BannerHost.Kind.WARN)
+                            // Disable Path 1 for the rest of this session.
+                            (root.context as? MainActivity)?.voiceHelperDisabled = true
+                        }
+                        "transcript" -> BannerHost.show("Didn't catch that", BannerHost.Kind.WARN)
+                    }
+                    cancel()
+                }
             }
         })
     }
