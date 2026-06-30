@@ -5,6 +5,7 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -62,7 +63,10 @@ class ChatFragment : Fragment() {
         inflater.inflate(R.layout.fragment_chat, container, false)
 
     override fun onViewCreated(view: View, state: Bundle?) {
-        view.findViewById<TextView>(R.id.peer).text = chatTitle
+        view.findViewById<TextView>(R.id.header_title).text = chatTitle
+        view.findViewById<ImageView>(R.id.header_back).setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
 
         val list = view.findViewById<RecyclerView>(R.id.messages)
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
@@ -74,6 +78,10 @@ class ChatFragment : Fragment() {
             onPlayVoice = { fileId -> downloadAndPlay(fileId) },
         )
         list.adapter = adapter
+
+        // Tell TDLib the user is viewing this chat. Required for GetChatHistory to
+        // pull from the server when the local cache only has the chat's lastMessage.
+        td?.send(TdApi.OpenChat(chatId)) {}
 
         val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
@@ -90,6 +98,9 @@ class ChatFragment : Fragment() {
         if (bridge != null) {
             composer = ComposerOverlay(view, tdClient, chatId, bridge)
         }
+
+        // Auto-focus the composer so a paired BT keyboard can type immediately on open.
+        view.findViewById<android.widget.EditText>(R.id.composerInput)?.requestFocus()
 
         // Voice-note send callback used by ComposerOverlay.stopAndSendVoiceNote.
         sendVoiceNote = { file, dur, wave ->
@@ -111,6 +122,8 @@ class ChatFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        // Signal TDLib the chat is no longer on-screen so it can throttle updates.
+        td?.send(TdApi.CloseChat(chatId)) {}
         // Release MediaPlayerPool if it was created to avoid ExoPlayer leaks.
         playerPool?.stop()
         playerPool = null

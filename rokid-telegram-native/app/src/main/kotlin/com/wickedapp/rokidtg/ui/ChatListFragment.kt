@@ -37,6 +37,11 @@ class ChatListFragment : Fragment() {
         i.inflate(R.layout.fragment_chat_list, c, false)
 
     override fun onViewCreated(view: View, s: Bundle?) {
+        view.findViewById<TextView>(R.id.header_title).text = getString(R.string.app_name)
+        // Hide the back arrow on the root chat list — nothing to go back to.
+        view.findViewById<android.widget.ImageView>(R.id.header_back).visibility = View.GONE
+        val subtitle = view.findViewById<TextView>(R.id.header_subtitle)
+
         val rv = view.findViewById<RecyclerView>(R.id.list)
         rv.layoutManager = LinearLayoutManager(requireContext())
         adapter = Adapter(onOpenChat)
@@ -82,7 +87,10 @@ class ChatListFragment : Fragment() {
 
         val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
-            r.chats.collect { adapter.submit(it) }
+            r.chats.collect {
+                adapter.submit(it)
+                subtitle.text = "${it.size}"
+            }
         }
         viewLifecycleOwner.lifecycleScope.launch { r.loadInitial() }
     }

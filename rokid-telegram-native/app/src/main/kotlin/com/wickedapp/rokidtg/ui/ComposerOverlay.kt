@@ -41,16 +41,25 @@ class ComposerOverlay(
     init {
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_NULL) {
-                val text = input.text.toString().trim()
-                if (text.isNotEmpty()) {
-                    onSend(text)
-                    input.setText("")
-                }
-                true
-            } else {
-                false
-            }
+                trySend(); true
+            } else false
         }
+        // Hardware ENTER from BT keyboard doesn't always fire IME action; catch the raw key.
+        input.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                 keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                trySend(); true
+            } else false
+        }
+        sendIcon.setOnClickListener { trySend() }
+    }
+
+    private fun trySend() {
+        val text = input.text.toString().trim()
+        if (text.isEmpty()) return
+        onSend(text)
+        input.setText("")
     }
 
     private var active = false
@@ -69,10 +78,8 @@ class ComposerOverlay(
     /** Returns true if a voice note is currently being recorded. */
     fun isRecording(): Boolean = recording
 
-    /** Show the composer overlay. */
-    fun show() {
-        container.visibility = View.VISIBLE
-    }
+    /** No-op kept for back-compat: the composer is always visible in the redesigned UI. */
+    fun show() {}
 
     /** Start recording a voice note. Caller is responsible for holding RECORD_AUDIO permission. */
     @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
@@ -161,7 +168,6 @@ class ComposerOverlay(
                 root.post {
                     finalTranscript = text
                     setTranscript(text, isFinal = true)
-                    sendIcon.isVisible = true
                 }
             }
 
@@ -247,11 +253,10 @@ class ComposerOverlay(
         hide()
     }
 
+    /** Resets composer state. The bar itself stays visible — only the transcript/state clears. */
     private fun hide() {
         active = false
         finalTranscript = null
-        container.visibility = View.GONE
-        sendIcon.isVisible = false
         setTranscript("", isFinal = false)
         bridge.cancel()
     }

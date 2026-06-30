@@ -16,4 +16,18 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
+    <ImageView
+        android:id="@+id/viewer_back"
+        android:layout_width="32px"
+        android:layout_height="32px"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="@dimen/safe_top"
+        android:layout_marginStart="12px"
+        android:padding="6px"
+        android:src="@drawable/ic_back"
+        android:focusable="true"
+        android:clickable="true"
+        android:background="@drawable/bg_card_stroke_80"
+        android:contentDescription="Back" />
+
 </FrameLayout>

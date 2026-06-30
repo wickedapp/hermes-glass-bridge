@@ -6,27 +6,28 @@
     android:paddingTop="@dimen/safe_top"
     android:paddingBottom="@dimen/safe_bottom">
 
+    <include
+        android:id="@+id/header"
+        layout="@layout/view_header" />
+
     <TextView
         android:id="@+id/peer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="@dimen/text_l3"
-        android:lineHeight="@dimen/line_l3"
-        android:textColor="@color/primary"
-        android:paddingStart="12px"
-        android:paddingBottom="8px" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/messages"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:focusable="true"
-        android:focusableInTouchMode="true" />
+        android:paddingStart="8px"
+        android:paddingEnd="8px"
+        android:focusable="false" />
 
     <include
         layout="@layout/overlay_composer"
         android:layout_width="match_parent"
-        android:layout_height="80px" />
+        android:layout_height="wrap_content" />
 
 </LinearLayout>

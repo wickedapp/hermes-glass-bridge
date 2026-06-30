@@ -177,6 +177,12 @@ class MainActivity : AppCompatActivity(), GestureSink {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // BT keyboard ESC → back, even while an EditText holds focus. Checked first so
+        // the EditText below can't swallow it.
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+            onBackPressedDispatcher.onBackPressed()
+            return true
+        }
         // If a text input is focused, let it consume keys first so EditText listeners
         // (OnEditorAction, OnKey, IME action) work — otherwise the router below would
         // swallow ENTER as Gesture.TAP before the EditText ever sees ACTION_DOWN.

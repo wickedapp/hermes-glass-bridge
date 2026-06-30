@@ -50,6 +50,9 @@ class MediaViewerFragment : Fragment() {
     ): View = inflater.inflate(R.layout.fragment_media_viewer, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        view.findViewById<ImageView>(R.id.viewer_back).setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
         val img = view.findViewById<ImageView>(R.id.image)
         val pv  = view.findViewById<PlayerView>(R.id.video)
 

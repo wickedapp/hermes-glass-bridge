@@ -4,15 +4,19 @@
     android:background="@color/bg"
     android:paddingTop="@dimen/safe_top" android:paddingBottom="@dimen/safe_bottom">
 
+    <include
+        android:id="@+id/header"
+        layout="@layout/view_header" />
+
     <!-- Search pill: focusable row with icon + EditText. Type query, press Enter to search.
          Pressing BACK from the EditText clears and restores the full chat list. -->
     <LinearLayout
         android:id="@+id/search_bar"
         android:layout_width="match_parent"
         android:layout_height="40dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginTop="6dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="4dp"
         android:layout_marginBottom="4dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
