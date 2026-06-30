@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -51,8 +52,7 @@ class ChatFragment : Fragment() {
     private val repo: MessageRepo? get() =
         (requireActivity() as? MainActivity)?.optionalService()?.getMessageRepo(chatId)
 
-    private var composer: ComposerOverlay? = null
-    private var sendVoiceNote: ((java.io.File, Int, ByteArray) -> Unit)? = null
+    private var replyPanel: ReplyPanel? = null
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -92,43 +92,47 @@ class ChatFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch { r.loadHistory() }
         }
 
-        // Wire composer overlay — lazily obtains the shared VoiceHelperBridge from MainActivity.
+        // Wire the reply state machine. Captures the chatId locally for the OGG-send callback
+        // so ReplyPanel doesn't need a reference back to the fragment.
         val tdClient = td ?: return
         val bridge = (requireActivity() as? MainActivity)?.getOrCreateBridge()
         if (bridge != null) {
-            composer = ComposerOverlay(view, tdClient, chatId, bridge)
+            val sendVoiceNote: (java.io.File, Int, ByteArray) -> Unit = { file, dur, wave ->
+                tdClient.send(TdApi.SendMessage().apply {
+                    this.chatId = this@ChatFragment.chatId
+                    inputMessageContent = TdApi.InputMessageVoiceNote().apply {
+                        voiceNote = TdApi.InputFileLocal(file.absolutePath)
+                        duration = dur
+                        waveform = wave
+                        caption = null
+                        selfDestructType = null
+                    }
+                }) { result ->
+                    if (result is TdApi.Error) {
+                        Timber.tag("VoiceNote").e("sendVoiceNote failed: %d %s", result.code, result.message)
+                    }
+                }
+            }
+            replyPanel = ReplyPanel(view, tdClient, chatId, bridge, sendVoiceNote)
         }
 
         // Default focus on the message list so SWIPE_FORWARD/BACK navigate messages
-        // straight away. BT keyboard users still get composer focus on first keystroke
-        // via MainActivity.dispatchKeyEvent → onPrintableKey.
+        // straight away. DPAD_DOWN past the last message reaches the Reply button.
         list.post { list.requestFocus() }
 
-        // Composer bar: tap = voice→text; long-press = voice note. The whole bar is the
-        // tap target so users don't have to aim at the small mic icon.
-        view.findViewById<View>(R.id.composer_overlay)?.apply {
-            // onClick is already wired inside ComposerOverlay.init; add long-press here
-            // because ComposerOverlay doesn't own the voice-note send callback.
-            setOnLongClickListener { onVoiceNoteToggle(); true }
-        }
-
-        // Voice-note send callback used by ComposerOverlay.stopAndSendVoiceNote.
-        sendVoiceNote = { file, dur, wave ->
-            tdClient.send(TdApi.SendMessage().apply {
-                this.chatId = this@ChatFragment.chatId
-                inputMessageContent = TdApi.InputMessageVoiceNote().apply {
-                    voiceNote = TdApi.InputFileLocal(file.absolutePath)
-                    duration = dur
-                    waveform = wave
-                    caption = null
-                    selfDestructType = null
-                }
-            }) { result ->
-                if (result is TdApi.Error) {
-                    Timber.tag("VoiceNote").e("sendVoiceNote failed: %d %s", result.code, result.message)
+        // Intercept back-press to collapse the reply panel (VOICE/TEXT/BT → MENU → DEFAULT)
+        // before letting the system pop the fragment back to the chat list.
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (replyPanel?.onBack() == true) return
+                    // Disable this callback and let the dispatcher do default pop.
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
                 }
             }
-        }
+        )
     }
 
     override fun onDestroyView() {
@@ -137,8 +141,7 @@ class ChatFragment : Fragment() {
         // Release MediaPlayerPool if it was created to avoid ExoPlayer leaks.
         playerPool?.stop()
         playerPool = null
-        composer = null
-        sendVoiceNote = null
+        replyPanel = null
         super.onDestroyView()
     }
 
@@ -250,38 +253,30 @@ class ChatFragment : Fragment() {
         return false
     }
 
-    /**
-     * Called by MainActivity on TWO_DOUBLE_TAP gesture.
-     * Returns true if the overlay handled the toggle (i.e. this fragment is active).
-     */
-    fun onVoiceToggle(): Boolean = composer?.toggleVoice() ?: false
-
-    /**
-     * Called by MainActivity on SETTINGS gesture (two-finger long-press).
-     * Toggles hold-to-record voice note mode: first call starts recording, second stops and sends.
-     */
-    fun onVoiceNoteToggle() {
-        val c = composer ?: return
-        val cb = sendVoiceNote ?: return
-        if (c.isRecording()) {
-            c.stopAndSendVoiceNote(cb)
-        } else {
-            c.startVoiceNote(cb)
-        }
+    /** Called by MainActivity on TWO_DOUBLE_TAP gesture — fast path to Reply menu. */
+    fun onVoiceToggle(): Boolean {
+        // Touchpad shortcut: bring up the reply menu so user can pick Voice/Text/BT.
+        return false
     }
+
+    /** Called by MainActivity on SETTINGS gesture — no-op in the new design. */
+    fun onVoiceNoteToggle() { /* handled via Reply → Voice button */ }
+
+    /** Returns true if the reply panel consumed back-press (collapsed one level). */
+    fun onBackPressed(): Boolean = replyPanel?.onBack() ?: false
 
     /**
      * Called by MainActivity.dispatchKeyEvent on printable key events.
-     * Shows the composer overlay and appends the character.
+     * Routes to the ReplyPanel BT-input state.
      */
     fun onPrintableKey(event: KeyEvent): Boolean {
         val ch = event.unicodeChar
         if (ch == 0) return false
-        val c = composer ?: return false
-        c.show()
-        c.appendChar(ch.toChar())
+        val panel = replyPanel ?: return false
+        panel.appendCharFromBtKeyboard(ch.toChar())
         return true
     }
+
 }
 
 // ---------------------------------------------------------------------------
