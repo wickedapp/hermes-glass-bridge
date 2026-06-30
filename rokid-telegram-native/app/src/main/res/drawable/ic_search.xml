@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp" android:height="20dp"
+    android:viewportWidth="20" android:viewportHeight="20">
+    <!-- Circle -->
+    <path
+        android:pathData="M8.5,3 A5.5,5.5 0 1,1 8.5,14 A5.5,5.5 0 1,1 8.5,3"
+        android:strokeColor="@color/primary"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000" />
+    <!-- Handle -->
+    <path
+        android:pathData="M12.5,12.5 L17,17"
+        android:strokeColor="@color/primary"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+</vector>
