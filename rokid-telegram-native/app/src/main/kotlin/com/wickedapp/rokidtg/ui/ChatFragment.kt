@@ -1,6 +1,7 @@
 package com.wickedapp.rokidtg.ui
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -104,6 +105,19 @@ class ChatFragment(
         } else {
             c.startVoiceNote(cb)
         }
+    }
+
+    /**
+     * Called by MainActivity.dispatchKeyEvent on printable key events.
+     * Shows the composer overlay and appends the character.
+     */
+    fun onPrintableKey(event: KeyEvent): Boolean {
+        val ch = event.unicodeChar
+        if (ch == 0) return false
+        val c = composer ?: return false
+        c.show()
+        c.appendChar(ch.toChar())
+        return true
     }
 }
 

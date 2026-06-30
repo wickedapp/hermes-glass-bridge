@@ -135,8 +135,16 @@ class MainActivity : AppCompatActivity(), GestureSink {
         super.onDestroy()
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-        router.dispatchKey(event) || super.dispatchKeyEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Check for printable key events while in ChatFragment
+        if (event.action == KeyEvent.ACTION_DOWN && event.unicodeChar != 0) {
+            val f = supportFragmentManager.findFragmentById(binding.container.id)
+            if (f is ChatFragment && f.onPrintableKey(event)) {
+                return true
+            }
+        }
+        return router.dispatchKey(event) || super.dispatchKeyEvent(event)
+    }
 
     override fun onGesture(g: SpriteBroadcast.Gesture): Boolean = when (g) {
         SpriteBroadcast.Gesture.SWIPE_FORWARD -> { focusNext(); true }

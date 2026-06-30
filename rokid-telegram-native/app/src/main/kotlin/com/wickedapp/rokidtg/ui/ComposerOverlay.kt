@@ -2,8 +2,10 @@ package com.wickedapp.rokidtg.ui
 
 import android.content.Intent
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
+import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresPermission
 import androidx.core.view.isVisible
 import com.wickedapp.rokidtg.R
@@ -31,8 +33,23 @@ class ComposerOverlay(
     private val bridge: VoiceHelperBridge,
 ) {
     private val container: View      = root.findViewById(R.id.composer_overlay)
-    private val transcriptTv: TextView = root.findViewById(R.id.composer_transcript)
+    private val input: EditText      = root.findViewById(R.id.composerInput)
     private val sendIcon: ImageView  = root.findViewById(R.id.composer_send)
+
+    init {
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_NULL) {
+                val text = input.text.toString().trim()
+                if (text.isNotEmpty()) {
+                    onSend(text)
+                    input.setText("")
+                }
+                true
+            } else {
+                false
+            }
+        }
+    }
 
     private var active = false
     private var finalTranscript: String? = null
@@ -50,12 +67,18 @@ class ComposerOverlay(
     /** Returns true if a voice note is currently being recorded. */
     fun isRecording(): Boolean = recording
 
+    /** Show the composer overlay. */
+    fun show() {
+        container.visibility = View.VISIBLE
+    }
+
     /** Start recording a voice note. Caller is responsible for holding RECORD_AUDIO permission. */
     @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
     fun startVoiceNote(@Suppress("UNUSED_PARAMETER") onSendVoiceNote: (File, Int, ByteArray) -> Unit) {
         if (recording) return
         show()
-        transcriptTv.text = "录音中…"
+        input.setText("录音中…")
+        input.setTextColor(root.context.getColor(R.color.primary_50))
         val f = File(root.context.filesDir, "voice/out-${System.currentTimeMillis()}.ogg")
             .also { it.parentFile?.mkdirs() }
         outFile = f
@@ -86,6 +109,11 @@ class ComposerOverlay(
             finalTranscript != null -> { sendAndHide(); true }
             else                 -> { cancel(); true }
         }
+    }
+
+    /** Called by ChatFragment.onPrintableKey() to append a character to the composer. */
+    fun appendChar(ch: Char) {
+        input.append(ch.toString())
     }
 
     // -------------------------------------------------------------------------
@@ -168,13 +196,25 @@ class ComposerOverlay(
         hide()
     }
 
+    private fun onSend(text: String) {
+        val req = TdApi.SendMessage().apply {
+            chatId = this@ComposerOverlay.chatId
+            inputMessageContent = TdApi.InputMessageText(
+                TdApi.FormattedText(text, emptyArray()),
+                null,  // linkPreviewOptions — null = default (preview enabled)
+                false  // clearDraft
+            )
+        }
+        td.send(req) { result ->
+            if (result is TdApi.Error) {
+                Timber.tag("Composer").e("sendMessage failed: %s %s", result.code, result.message)
+            }
+        }
+    }
+
     private fun cancel() {
         bridge.cancel()
         hide()
-    }
-
-    private fun show() {
-        container.visibility = View.VISIBLE
     }
 
     private fun hide() {
@@ -187,10 +227,10 @@ class ComposerOverlay(
     }
 
     private fun setTranscript(text: String, isFinal: Boolean) {
-        transcriptTv.text = text
-        transcriptTv.setTextColor(
-            if (isFinal) root.context.getColor(com.wickedapp.rokidtg.R.color.primary)
-            else root.context.getColor(com.wickedapp.rokidtg.R.color.primary_50)
+        input.setText(text)
+        input.setTextColor(
+            if (isFinal) root.context.getColor(R.color.primary)
+            else root.context.getColor(R.color.primary_50)
         )
     }
 }
