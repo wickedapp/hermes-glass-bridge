@@ -1,0 +1,7 @@
+<resources>
+    <color name="bg">#FF000000</color>
+    <color name="primary">#FF40FF5E</color>
+    <color name="primary_50">#8040FF5E</color>
+    <color name="primary_40">#6640FF5E</color>
+    <color name="primary_80">#CC40FF5E</color>
+</resources>
