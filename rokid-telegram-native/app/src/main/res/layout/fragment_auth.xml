@@ -62,7 +62,7 @@
         android:id="@+id/auth_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Press Enter to submit"
+        android:text="@string/auth_submit_hint"
         android:textSize="@dimen/text_l5"
         android:textColor="@color/primary_40"
         android:layout_marginTop="12dp" />

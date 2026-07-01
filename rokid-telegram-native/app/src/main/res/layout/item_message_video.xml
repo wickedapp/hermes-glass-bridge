@@ -28,7 +28,7 @@
             android:id="@+id/hint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="(video)"
+            android:text="@string/message_video_placeholder"
             android:textSize="@dimen/text_l4"
             android:lineHeight="@dimen/line_l4"
             android:textColor="@color/primary_50" />

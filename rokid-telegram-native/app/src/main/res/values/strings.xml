@@ -2,18 +2,78 @@
     <string name="app_name">Rokid TG</string>
     <string name="placeholder_scaffold">Rokid TG — scaffolding</string>
 
-    <!-- Reply state machine (bottom panel) -->
-    <string name="btn_reply">回复</string>
-    <string name="btn_voice">语音</string>
-    <string name="btn_text">文字</string>
-    <string name="btn_bt">键盘</string>
-    <string name="btn_send">发送</string>
-    <string name="btn_cancel">取消</string>
-    <string name="voice_recording_zero">● 0:00</string>
-    <string name="composer_listening">正在听…</string>
-    <string name="composer_input_hint">键入消息…</string>
+    <string name="chat_list_hint">↑↓ select chat · Enter open · Back system return</string>
+    <string name="chat_list_footer_title">Window mode: only the highlighted card acts</string>
+    <string name="chat_list_footer_body">No noisy search bar; use ↑↓ / Enter for core actions.</string>
+    <string name="live_count">LIVE · %1$d</string>
 
-    <!-- a11y -->
-    <string name="composer_mic_desc">麦克风</string>
-    <string name="composer_send_desc">发送</string>
+    <string name="chat_hint_focus_default">↑↓ switch window · Enter enter · Back return</string>
+    <string name="chat_hint_header">Enter top controls · ↓ to messages</string>
+    <string name="chat_hint_messages">Enter messages · ↑↓ switch window</string>
+    <string name="chat_hint_reply">Enter reply · ↑ to messages</string>
+    <string name="chat_hint_header_active">Top controls: ↑↓ Back/Pin/Mute · Enter act · Back exit</string>
+    <string name="chat_hint_messages_active">Messages: ↑↓ scroll · Enter open · Back exit</string>
+    <string name="chat_hint_reply_active">Reply: ↑↓ choose · Enter act · Back exit</string>
+
+    <string name="action_pin">PIN</string>
+    <string name="action_pin_on">★PIN</string>
+    <string name="action_mute">MUTE</string>
+    <string name="action_mute_on">MUTED</string>
+    <string name="pin_limit_warning">You can pin up to 5 chats</string>
+    <string name="pin_enabled">Pinned to top</string>
+    <string name="pin_disabled">Unpinned</string>
+    <string name="mute_enabled">This chat is muted</string>
+    <string name="mute_disabled">Notifications on for this chat</string>
+
+    <string name="btn_reply">Reply</string>
+    <string name="btn_voice">Voice</string>
+    <string name="btn_text">Dictate</string>
+    <string name="btn_bt">Keyboard</string>
+    <string name="btn_send">Send</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_redo_cancel">Redo/Cancel</string>
+    <string name="voice_recording_zero">● 0:00</string>
+    <string name="composer_listening">Listening…</string>
+    <string name="composer_input_hint">Type a message…</string>
+    <string name="confirm_send_format">Send this?\n%1$s</string>
+    <string name="mic_busy">Microphone is busy</string>
+    <string name="voice_helper_not_ready">Voice helper is not ready</string>
+    <string name="voice_not_clear">Didn’t catch that</string>
+    <string name="voice_return_channel">Voice return</string>
+    <string name="voice_return_title">Telegram voice input finished</string>
+    <string name="voice_return_text">Return to confirm send</string>
+
+    <string name="notification_channel_running">Telegram running</string>
+    <string name="notification_running_text">connected</string>
+    <string name="notification_channel_messages">New messages</string>
+    <string name="session_ended">Session ended. Sign in again.</string>
+    <string name="offline">Offline</string>
+
+    <string name="auth_submit_hint">Press Enter to submit</string>
+    <string name="auth_phone_prompt">Enter your phone number (with country code)</string>
+    <string name="auth_code_prompt">Enter the code sent to %1$s</string>
+    <string name="auth_code_target_phone">your phone</string>
+    <string name="auth_password_prompt">Enter your 2FA password</string>
+    <string name="auth_password_hint_prompt">2FA password (hint: %1$s)</string>
+    <string name="auth_password_hint">password</string>
+    <string name="auth_email_prompt">Enter your email address</string>
+    <string name="auth_email_code_prompt">Enter the code sent to your email</string>
+    <string name="auth_registration_prompt">New account — enter your first name</string>
+    <string name="auth_first_name_hint">First name</string>
+    <string name="auth_initializing">Initializing…</string>
+
+    <string name="sender_me">Me</string>
+    <string name="sender_unknown">Other</string>
+    <string name="sender_user_fallback">User %1$s</string>
+    <string name="sender_chat_fallback">Chat %1$s</string>
+    <string name="message_unsupported">unsupported</string>
+    <string name="message_photo">photo</string>
+    <string name="message_video">video</string>
+    <string name="message_voice">voice</string>
+    <string name="message_photo_placeholder">(photo)</string>
+    <string name="message_video_placeholder">(video)</string>
+    <string name="message_voice_placeholder">(voice note)</string>
+
+    <string name="composer_mic_desc">Microphone</string>
+    <string name="composer_send_desc">Send</string>
 </resources>

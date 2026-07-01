@@ -21,7 +21,7 @@
             android:id="@+id/mode_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="↑↓換窗口 · Enter 進入 · Back 返回"
+            android:text="@string/chat_hint_focus_default"
             android:textColor="@color/primary_50"
             android:textSize="@dimen/text_l5"
             android:lineHeight="@dimen/line_l5"

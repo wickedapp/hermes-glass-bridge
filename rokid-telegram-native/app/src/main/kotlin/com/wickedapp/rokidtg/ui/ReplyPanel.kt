@@ -100,9 +100,9 @@ class ReplyPanel(
         btnText.setOnClickListener  { startTextReply() }
         btnBt.setOnClickListener    { startBtReply() }
 
-        btnVoice.setOnFocusChangeListener { _, has -> if (has) BannerHost.show("Voice", BannerHost.Kind.INFO) }
-        btnText.setOnFocusChangeListener  { _, has -> if (has) BannerHost.show("Dictate", BannerHost.Kind.INFO) }
-        btnBt.setOnFocusChangeListener    { _, has -> if (has) BannerHost.show("Keyboard", BannerHost.Kind.INFO) }
+        btnVoice.setOnFocusChangeListener { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_voice), BannerHost.Kind.INFO) }
+        btnText.setOnFocusChangeListener  { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_text), BannerHost.Kind.INFO) }
+        btnBt.setOnFocusChangeListener    { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_bt), BannerHost.Kind.INFO) }
 
         btnVoiceSend.setOnClickListener   { stopAndSendVoice() }
         btnVoiceCancel.setOnClickListener { cancelVoice() }
@@ -148,7 +148,7 @@ class ReplyPanel(
         textActive = true
         textFinal = text
         go(State.TEXT)
-        textTranscript.text = "確認發送？\n$text"
+        textTranscript.text = ctx.getString(R.string.confirm_send_format, text)
         textTranscript.setTextColor(ctx.getColor(R.color.primary))
         btnTextSend.requestFocus()
     }
@@ -208,7 +208,7 @@ class ReplyPanel(
             cap.start(
                 onMono16k = { pcm -> encoder?.feed(pcm) },
                 onError = {
-                    BannerHost.show("麦克风被系统占用", BannerHost.Kind.WARN)
+                    BannerHost.show(ctx.getString(R.string.mic_busy), BannerHost.Kind.WARN)
                     root.post { cancelVoice() }
                 }
             )
@@ -252,7 +252,7 @@ class ReplyPanel(
         Timber.tag("ReplyPanel").i("startTextReply")
         val activity = ctx as? MainActivity
         if (activity?.voiceHelperDisabled == true) {
-            BannerHost.show("语音助手未就绪", BannerHost.Kind.WARN)
+            BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
             return
         }
         textActive = true
@@ -293,7 +293,7 @@ class ReplyPanel(
             val channelId = "voice_return"
             if (Build.VERSION.SDK_INT >= 26) {
                 nm.createNotificationChannel(
-                    NotificationChannel(channelId, "Voice return", NotificationManager.IMPORTANCE_HIGH)
+                    NotificationChannel(channelId, ctx.getString(R.string.voice_return_channel), NotificationManager.IMPORTANCE_HIGH)
                 )
             }
             val pi = PendingIntent.getActivity(
@@ -304,8 +304,8 @@ class ReplyPanel(
             )
             val n = NotificationCompat.Builder(ctx, channelId)
                 .setSmallIcon(R.drawable.ic_mic)
-                .setContentTitle("Telegram 語音輸入完成")
-                .setContentText("返回確認發送")
+                .setContentTitle(ctx.getString(R.string.voice_return_title))
+                .setContentText(ctx.getString(R.string.voice_return_text))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setFullScreenIntent(pi, true)
@@ -350,10 +350,10 @@ class ReplyPanel(
                     bringAppToFront()
                     when (stage) {
                         "ready" -> {
-                            BannerHost.show("语音助手未就绪", BannerHost.Kind.WARN)
+                            BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
                             (ctx as? MainActivity)?.voiceHelperDisabled = true
                         }
-                        "transcript" -> BannerHost.show("没听清", BannerHost.Kind.WARN)
+                        "transcript" -> BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
                     }
                     cancelText()
                 }

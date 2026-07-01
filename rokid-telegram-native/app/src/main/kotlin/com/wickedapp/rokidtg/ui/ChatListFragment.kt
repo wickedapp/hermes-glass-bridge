@@ -89,7 +89,7 @@ class ChatListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             r.chats.collect {
                 adapter.submit(it)
-                subtitle.text = "LIVE · ${it.size}"
+                subtitle.text = getString(R.string.live_count, it.size)
                 rv.post { (rv.getChildAt(0) ?: rv).requestFocus() }
             }
         }

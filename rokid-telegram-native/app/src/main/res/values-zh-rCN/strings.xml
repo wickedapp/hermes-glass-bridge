@@ -1,0 +1,79 @@
+<resources>
+    <string name="app_name">Rokid TG</string>
+    <string name="placeholder_scaffold">Rokid TG — 脚手架</string>
+
+    <string name="chat_list_hint">↑↓ 选择聊天 · Enter 打开 · Back 系统返回</string>
+    <string name="chat_list_footer_title">窗口模式：只操作高亮卡片</string>
+    <string name="chat_list_footer_body">不显示杂讯搜索栏；用 ↑↓ / Enter 完成主操作。</string>
+    <string name="live_count">在线 · %1$d</string>
+
+    <string name="chat_hint_focus_default">↑↓ 切换窗口 · Enter 进入 · Back 返回</string>
+    <string name="chat_hint_header">Enter 进入顶部控制 · ↓ 到消息</string>
+    <string name="chat_hint_messages">Enter 进入消息 · ↑↓ 切换窗口</string>
+    <string name="chat_hint_reply">Enter 进入回复 · ↑ 到消息</string>
+    <string name="chat_hint_header_active">顶部控制：↑↓ 选择返回/置顶/静音 · Enter 执行 · Back 退出</string>
+    <string name="chat_hint_messages_active">消息内：↑↓ 滚动 · Enter 打开 · Back 退出</string>
+    <string name="chat_hint_reply_active">回复内：↑↓ 选择 · Enter 执行 · Back 退出</string>
+
+    <string name="action_pin">置顶</string>
+    <string name="action_pin_on">★置顶</string>
+    <string name="action_mute">静音</string>
+    <string name="action_mute_on">已静音</string>
+    <string name="pin_limit_warning">最多置顶 5 个对话</string>
+    <string name="pin_enabled">已置顶到最上方</string>
+    <string name="pin_disabled">已取消置顶</string>
+    <string name="mute_enabled">此对话已静音</string>
+    <string name="mute_disabled">此对话通知已开启</string>
+
+    <string name="btn_reply">回复</string>
+    <string name="btn_voice">语音</string>
+    <string name="btn_text">听写</string>
+    <string name="btn_bt">键盘</string>
+    <string name="btn_send">发送</string>
+    <string name="btn_cancel">取消</string>
+    <string name="btn_redo_cancel">重说/取消</string>
+    <string name="voice_recording_zero">● 0:00</string>
+    <string name="composer_listening">正在听…</string>
+    <string name="composer_input_hint">输入消息…</string>
+    <string name="confirm_send_format">确认发送？\n%1$s</string>
+    <string name="mic_busy">麦克风被系统占用</string>
+    <string name="voice_helper_not_ready">语音助手未就绪</string>
+    <string name="voice_not_clear">没听清</string>
+    <string name="voice_return_channel">语音返回</string>
+    <string name="voice_return_title">Telegram 语音输入完成</string>
+    <string name="voice_return_text">返回确认发送</string>
+
+    <string name="notification_channel_running">Telegram 运行中</string>
+    <string name="notification_running_text">已连接</string>
+    <string name="notification_channel_messages">新消息</string>
+    <string name="session_ended">会话已结束，请重新登录。</string>
+    <string name="offline">离线</string>
+
+    <string name="auth_submit_hint">按 Enter 提交</string>
+    <string name="auth_phone_prompt">输入手机号（含国家/地区代码）</string>
+    <string name="auth_code_prompt">输入发送到 %1$s 的验证码</string>
+    <string name="auth_code_target_phone">你的手机</string>
+    <string name="auth_password_prompt">输入两步验证密码</string>
+    <string name="auth_password_hint_prompt">两步验证密码（提示：%1$s）</string>
+    <string name="auth_password_hint">密码</string>
+    <string name="auth_email_prompt">输入邮箱地址</string>
+    <string name="auth_email_code_prompt">输入发送到邮箱的验证码</string>
+    <string name="auth_registration_prompt">新账号 — 输入名字</string>
+    <string name="auth_first_name_hint">名字</string>
+    <string name="auth_initializing">正在初始化…</string>
+
+    <string name="sender_me">我</string>
+    <string name="sender_unknown">对方</string>
+    <string name="sender_user_fallback">用户 %1$s</string>
+    <string name="sender_chat_fallback">聊天 %1$s</string>
+    <string name="message_unsupported">暂不支持</string>
+    <string name="message_photo">照片</string>
+    <string name="message_video">视频</string>
+    <string name="message_voice">语音</string>
+    <string name="message_photo_placeholder">（照片）</string>
+    <string name="message_video_placeholder">（视频）</string>
+    <string name="message_voice_placeholder">（语音消息）</string>
+
+    <string name="composer_mic_desc">麦克风</string>
+    <string name="composer_send_desc">发送</string>
+</resources>

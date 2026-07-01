@@ -342,9 +342,9 @@ class ChatFragment : Fragment() {
             WindowSlot.REPLY -> replyWindow?.requestFocus()
         }
         modeHint?.text = when (slot) {
-            WindowSlot.HEADER -> "Enter 進入頂部控制 · ↓ 到訊息"
-            WindowSlot.MESSAGES -> "Enter 進入訊息 · ↑↓換窗口"
-            WindowSlot.REPLY -> "Enter 進入回覆 · ↑ 到訊息"
+            WindowSlot.HEADER -> getString(R.string.chat_hint_header)
+            WindowSlot.MESSAGES -> getString(R.string.chat_hint_messages)
+            WindowSlot.REPLY -> getString(R.string.chat_hint_reply)
         }
     }
 
@@ -353,7 +353,7 @@ class ChatFragment : Fragment() {
             WindowSlot.HEADER -> {
                 activeWindow = WindowSlot.HEADER
                 focusHeaderAction(focusedHeaderAction)
-                modeHint?.text = "頂部控制：↑↓選 Back/Pin/Mute · Enter 執行 · Back 退出"
+                modeHint?.text = getString(R.string.chat_hint_header_active)
             }
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
@@ -361,12 +361,12 @@ class ChatFragment : Fragment() {
                 list.isFocusable = true
                 list.isFocusableInTouchMode = true
                 (list.findFocus() ?: list.getChildAt(0) ?: list).requestFocus()
-                modeHint?.text = "訊息內：↑↓滾動 · Enter 開啟 · Back 退出"
+                modeHint?.text = getString(R.string.chat_hint_messages_active)
             }
             WindowSlot.REPLY -> {
                 activeWindow = WindowSlot.REPLY
                 replyPanel?.openMenu()
-                modeHint?.text = "回覆內：↑↓選 · Enter 執行 · Back 退出"
+                modeHint?.text = getString(R.string.chat_hint_reply_active)
             }
         }
     }
@@ -375,10 +375,10 @@ class ChatFragment : Fragment() {
         val binder = (requireActivity() as? MainActivity)?.optionalService() ?: return
         val ok = binder.togglePinned(chatId)
         if (!ok) {
-            BannerHost.show("最多 Pin 5 個對話", BannerHost.Kind.WARN)
+            BannerHost.show(getString(R.string.pin_limit_warning), BannerHost.Kind.WARN)
         } else {
             val pinned = binder.getChatPrefs().isPinned(chatId)
-            BannerHost.show(if (pinned) "已 Pin 到最上方" else "已取消 Pin", BannerHost.Kind.INFO)
+            BannerHost.show(getString(if (pinned) R.string.pin_enabled else R.string.pin_disabled), BannerHost.Kind.INFO)
         }
         refreshHeaderControls()
     }
@@ -386,7 +386,7 @@ class ChatFragment : Fragment() {
     private fun toggleMute() {
         val binder = (requireActivity() as? MainActivity)?.optionalService() ?: return
         val muted = binder.toggleMuted(chatId)
-        BannerHost.show(if (muted) "此對話已靜音" else "此對話通知已開", BannerHost.Kind.INFO)
+        BannerHost.show(getString(if (muted) R.string.mute_enabled else R.string.mute_disabled), BannerHost.Kind.INFO)
         refreshHeaderControls()
     }
 
@@ -395,11 +395,11 @@ class ChatFragment : Fragment() {
         val pinned = prefs?.isPinned(chatId) == true
         val muted = prefs?.isMuted(chatId) == true
         pinButton?.apply {
-            text = if (pinned) "★PIN" else "PIN"
+            text = getString(if (pinned) R.string.action_pin_on else R.string.action_pin)
             setTextColor(context.getColor(if (pinned) R.color.primary else R.color.primary_50))
         }
         muteButton?.apply {
-            text = if (muted) "MUTED" else "MUTE"
+            text = getString(if (muted) R.string.action_mute_on else R.string.action_mute)
             setTextColor(context.getColor(if (muted) R.color.primary else R.color.primary_50))
         }
     }
@@ -547,11 +547,12 @@ class MsgAdapter(
         private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
         fun bind(row: MsgRow) {
-            sender.text = if (row.isOutgoing) "Me ▶" else "◀ ${row.senderLabel}"
+            val me = itemView.context.getString(R.string.sender_me)
+            sender.text = if (row.isOutgoing) "$me ▶" else "◀ ${row.senderLabel}"
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
                 is MsgRow.Unsupported -> "(${row.label})"
-                else                  -> "(unsupported)"
+                else                  -> "(${itemView.context.getString(R.string.message_unsupported)})"
             }
             val lp = bubble.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
@@ -567,7 +568,9 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
-            hint.text = if (row.isOutgoing) "Me ▶ · photo" else "◀ ${row.senderLabel} · photo"
+            val label = itemView.context.getString(R.string.message_photo)
+            val me = itemView.context.getString(R.string.sender_me)
+            hint.text = if (row.isOutgoing) "$me ▶ · $label" else "◀ ${row.senderLabel} · $label"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp
@@ -580,7 +583,9 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
-            hint.text = if (row.isOutgoing) "Me ▶ · video ${row.durationS}s" else "◀ ${row.senderLabel} · video ${row.durationS}s"
+            val label = itemView.context.getString(R.string.message_video)
+            val me = itemView.context.getString(R.string.sender_me)
+            hint.text = if (row.isOutgoing) "$me ▶ · $label ${row.durationS}s" else "◀ ${row.senderLabel} · $label ${row.durationS}s"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp
@@ -593,7 +598,9 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
-            hint.text = if (row.isOutgoing) "Me ▶ · voice ${row.durationS}s" else "◀ ${row.senderLabel} · voice ${row.durationS}s"
+            val label = itemView.context.getString(R.string.message_voice)
+            val me = itemView.context.getString(R.string.sender_me)
+            hint.text = if (row.isOutgoing) "$me ▶ · $label ${row.durationS}s" else "◀ ${row.senderLabel} · $label ${row.durationS}s"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp

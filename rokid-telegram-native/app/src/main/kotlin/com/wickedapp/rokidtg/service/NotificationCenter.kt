@@ -71,7 +71,7 @@ class NotificationCenter(
         val nm = ctx.getSystemService(NotificationManager::class.java)
         val ch = NotificationChannel(
             CHAN_BANNER,
-            "New messages",
+            ctx.getString(R.string.notification_channel_messages),
             NotificationManager.IMPORTANCE_HIGH,
         )
         nm.createNotificationChannel(ch)

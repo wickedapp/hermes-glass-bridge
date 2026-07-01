@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 import java.io.File
+import java.util.Locale
 
 class TelegramService : LifecycleService() {
 
@@ -124,7 +125,7 @@ class TelegramService : LifecycleService() {
         /** Returns (or lazily creates) a service-scoped MessageRepo for [chatId]. */
         fun getMessageRepo(chatId: Long): MessageRepo? {
             val c = client ?: return null
-            return messageRepos.getOrPut(chatId) { MessageRepo(c, chatId, lifecycleScope) }
+            return messageRepos.getOrPut(chatId) { MessageRepo(c, chatId, lifecycleScope, this@TelegramService) }
         }
     }
 
@@ -145,6 +146,7 @@ class TelegramService : LifecycleService() {
             filesDir = File(filesDir, "tdlib/files"),
             apiId    = BuildConfig.TG_API_ID,
             apiHash  = BuildConfig.TG_API_HASH,
+            systemLangCode = Locale.getDefault().language.ifBlank { "en" },
         )
         client = c
         notifications = NotificationCenter(this, c, lifecycleScope, chatPrefs)
@@ -157,7 +159,7 @@ class TelegramService : LifecycleService() {
                 _authState.value = s
                 _authorized.value = s is TdApi.AuthorizationStateReady
                 if (s is TdApi.AuthorizationStateClosed) {
-                    BannerHost.show("Session ended. Sign in again.", BannerHost.Kind.WARN, 10_000)
+                    BannerHost.show(getString(R.string.session_ended), BannerHost.Kind.WARN, 10_000)
                 }
             }
         }
@@ -184,14 +186,14 @@ class TelegramService : LifecycleService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel(
                 CHAN_ID,
-                "Telegram running",
+                getString(R.string.notification_channel_running),
                 NotificationManager.IMPORTANCE_LOW,
             )
             nm.createNotificationChannel(ch)
         }
         return Notification.Builder(this, CHAN_ID)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("connected")
+            .setContentText(getString(R.string.notification_running_text))
             .setSmallIcon(R.drawable.ic_stat_rokid_tg)
             .setOngoing(true)
             .build()

@@ -92,7 +92,7 @@ class AuthFragment : Fragment() {
     }
 
     private fun configurePhone() {
-        promptView.text = "Enter your phone number (with country code)"
+        promptView.setText(R.string.auth_phone_prompt)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_PHONE
         inputView.hint = "+60193450205"
@@ -101,8 +101,8 @@ class AuthFragment : Fragment() {
 
     private fun configureCode(state: TdApi.AuthorizationStateWaitCode) {
         val info = state.codeInfo
-        val target = (info?.phoneNumber?.takeIf { it.isNotEmpty() } ?: "your phone").let { "+$it".trimEnd('+') }
-        promptView.text = "Enter the code sent to $target"
+        val target = (info?.phoneNumber?.takeIf { it.isNotEmpty() } ?: getString(R.string.auth_code_target_phone)).let { "+$it".trimEnd('+') }
+        promptView.text = getString(R.string.auth_code_prompt, target)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_NUMBER
         inputView.hint = "123456"
@@ -111,15 +111,15 @@ class AuthFragment : Fragment() {
 
     private fun configurePassword(state: TdApi.AuthorizationStateWaitPassword) {
         val hint = state.passwordHint?.takeIf { it.isNotEmpty() }
-        promptView.text = if (hint != null) "2FA password (hint: $hint)" else "Enter your 2FA password"
+        promptView.text = if (hint != null) getString(R.string.auth_password_hint_prompt, hint) else getString(R.string.auth_password_prompt)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        inputView.hint = "password"
+        inputView.setHint(R.string.auth_password_hint)
         clearAndFocus()
     }
 
     private fun configureEmailAddress() {
-        promptView.text = "Enter your email address"
+        promptView.setText(R.string.auth_email_prompt)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         inputView.hint = "you@example.com"
@@ -127,7 +127,7 @@ class AuthFragment : Fragment() {
     }
 
     private fun configureEmailCode() {
-        promptView.text = "Enter the code sent to your email"
+        promptView.setText(R.string.auth_email_code_prompt)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_NUMBER
         inputView.hint = "123456"
@@ -135,15 +135,15 @@ class AuthFragment : Fragment() {
     }
 
     private fun configureRegistration() {
-        promptView.text = "New account — enter your first name"
+        promptView.setText(R.string.auth_registration_prompt)
         inputView.isEnabled = true
         inputView.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-        inputView.hint = "First name"
+        inputView.setHint(R.string.auth_first_name_hint)
         clearAndFocus()
     }
 
     private fun configureInitializing() {
-        promptView.text = "Initializing…"
+        promptView.setText(R.string.auth_initializing)
         inputView.isEnabled = false
         inputView.text.clear()
     }

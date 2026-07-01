@@ -1,5 +1,7 @@
 package com.wickedapp.rokidtg.data
 
+import android.content.Context
+import com.wickedapp.rokidtg.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +17,7 @@ class MessageRepo(
     private val td: TdClientFacade,
     private val chatId: Long,
     scope: CoroutineScope,
+    private val context: Context? = null,
 ) {
     // Keyed by message id (ascending) so values() is oldest-first
     private val cache = TreeMap<Long, MsgRow>()
@@ -104,7 +107,7 @@ class MessageRepo(
                     val biggest = sizes.maxByOrNull { it.width * it.height } ?: sizes.last()
                     MsgRow.Photo(m.id, m.date, m.isOutgoing, label, biggest.photo.id, biggest.width, biggest.height)
                 } else {
-                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, "photo(no-sizes)")
+                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, text(R.string.message_photo))
                 }
             }
 
@@ -113,7 +116,7 @@ class MessageRepo(
                 if (vid != null) {
                     MsgRow.Video(m.id, m.date, m.isOutgoing, label, vid.video.id, vid.duration)
                 } else {
-                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, "video(null)")
+                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, text(R.string.message_video))
                 }
             }
 
@@ -122,7 +125,7 @@ class MessageRepo(
                 if (vn != null) {
                     MsgRow.Voice(m.id, m.date, m.isOutgoing, label, vn.voice.id, vn.duration)
                 } else {
-                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, "voice(null)")
+                    MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, text(R.string.message_voice))
                 }
             }
 
@@ -133,15 +136,15 @@ class MessageRepo(
     }
 
     private fun senderLabel(m: TdApi.Message): String {
-        if (m.isOutgoing) return "Me"
+        if (m.isOutgoing) return text(R.string.sender_me)
         val sig = runCatching { m.authorSignature }.getOrNull()
         if (!sig.isNullOrBlank()) return sig
-        val key = senderKey(m) ?: return "對方"
+        val key = senderKey(m) ?: return text(R.string.sender_unknown)
         senderNames[key]?.let { return it }
         return when (val s = m.senderId) {
-            is TdApi.MessageSenderUser -> "User ${s.userId.toString().takeLast(4)}"
-            is TdApi.MessageSenderChat -> "Chat ${s.chatId.toString().takeLast(4)}"
-            else -> "對方"
+            is TdApi.MessageSenderUser -> text(R.string.sender_user_fallback, s.userId.toString().takeLast(4))
+            is TdApi.MessageSenderChat -> text(R.string.sender_chat_fallback, s.chatId.toString().takeLast(4))
+            else -> text(R.string.sender_unknown)
         }
     }
 
@@ -161,7 +164,7 @@ class MessageRepo(
         when (val s = m.senderId) {
             is TdApi.MessageSenderUser -> td.send(TdApi.GetUser(s.userId)) { obj ->
                 val user = obj as? TdApi.User ?: return@send
-                val fallback = "User ${s.userId.toString().takeLast(4)}"
+                val fallback = text(R.string.sender_user_fallback, s.userId.toString().takeLast(4))
                 val full = listOf(user.firstName, user.lastName)
                     .filter { !it.isNullOrBlank() }
                     .joinToString(" ")
@@ -170,7 +173,7 @@ class MessageRepo(
             }
             is TdApi.MessageSenderChat -> td.send(TdApi.GetChat(s.chatId)) { obj ->
                 val chat = obj as? TdApi.Chat ?: return@send
-                val fallback = "Chat ${s.chatId.toString().takeLast(4)}"
+                val fallback = text(R.string.sender_chat_fallback, s.chatId.toString().takeLast(4))
                 cacheSenderName(key, fallback, chat.title.ifBlank { fallback })
             }
             else -> Unit
@@ -201,6 +204,18 @@ class MessageRepo(
         is MsgRow.Voice -> copy(senderLabel = name)
         is MsgRow.Unsupported -> copy(senderLabel = name)
     }
+
+    private fun text(resId: Int, vararg args: Any): String =
+        context?.getString(resId, *args) ?: when (resId) {
+            R.string.sender_me -> "Me"
+            R.string.sender_unknown -> "Other"
+            R.string.sender_user_fallback -> "User ${args.firstOrNull()?.toString().orEmpty()}"
+            R.string.sender_chat_fallback -> "Chat ${args.firstOrNull()?.toString().orEmpty()}"
+            R.string.message_photo -> "photo"
+            R.string.message_video -> "video"
+            R.string.message_voice -> "voice"
+            else -> ""
+        }
 }
 
 /** Returns 0 if the map is empty (GetChatHistory interprets 0 as "from newest"). */
