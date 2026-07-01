@@ -54,9 +54,11 @@ class ChatFragment : Fragment() {
         (requireActivity() as? MainActivity)?.optionalService()?.getMessageRepo(chatId)
 
     private var replyPanel: ReplyPanel? = null
-    private enum class WindowSlot { BACK, PIN, MUTE, MESSAGES, REPLY }
+    private enum class WindowSlot { HEADER, MESSAGES, REPLY }
+    private enum class HeaderAction { BACK, PIN, MUTE }
     private var focusedWindow: WindowSlot = WindowSlot.MESSAGES
     private var activeWindow: WindowSlot? = null
+    private var focusedHeaderAction: HeaderAction = HeaderAction.BACK
     private var modeHint: TextView? = null
     private var messageWindow: View? = null
     private var replyWindow: View? = null
@@ -271,15 +273,12 @@ class ChatFragment : Fragment() {
      * next page of older history from TDLib instead of jumping to the header.
      */
     fun pageUp() {
-        val list = view?.findViewById<RecyclerView>(R.id.messages)
-        val cur = view?.findFocus()
-        val next = cur?.focusSearch(View.FOCUS_UP)
-        val staysInList = next != null && list != null && isDescendantOf(next, list)
-        if (cur != null && next != null && next !== cur && staysInList) {
-            next.requestFocus()
-        } else {
+        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+        val lm = list.layoutManager as? LinearLayoutManager
+        if (lm != null && lm.findFirstVisibleItemPosition() <= 1) {
             viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
         }
+        list.smoothScrollBy(0, -128)
     }
 
     /**
@@ -324,7 +323,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun nextWindow(delta: Int): WindowSlot {
-        val order = listOf(WindowSlot.BACK, WindowSlot.PIN, WindowSlot.MUTE, WindowSlot.MESSAGES, WindowSlot.REPLY)
+        val order = listOf(WindowSlot.HEADER, WindowSlot.MESSAGES, WindowSlot.REPLY)
         val idx = order.indexOf(focusedWindow).coerceAtLeast(0)
         val next = (idx + delta).coerceIn(0, order.lastIndex)
         return order[next]
@@ -338,16 +337,12 @@ class ChatFragment : Fragment() {
             isFocusableInTouchMode = false
         }
         when (slot) {
-            WindowSlot.BACK -> view?.findViewById<ImageView>(R.id.header_back)?.requestFocus()
-            WindowSlot.PIN -> pinButton?.requestFocus()
-            WindowSlot.MUTE -> muteButton?.requestFocus()
+            WindowSlot.HEADER -> focusHeaderAction(focusedHeaderAction)
             WindowSlot.MESSAGES -> messageWindow?.requestFocus()
             WindowSlot.REPLY -> replyWindow?.requestFocus()
         }
         modeHint?.text = when (slot) {
-            WindowSlot.BACK -> "Enter 返回 · ↓ 到 Pin"
-            WindowSlot.PIN -> "Enter Pin/Unpin · ↑↓換窗口"
-            WindowSlot.MUTE -> "Enter 靜音/開通知 · ↑↓換窗口"
+            WindowSlot.HEADER -> "Enter 進入頂部控制 · ↓ 到訊息"
             WindowSlot.MESSAGES -> "Enter 進入訊息 · ↑↓換窗口"
             WindowSlot.REPLY -> "Enter 進入回覆 · ↑ 到訊息"
         }
@@ -355,9 +350,11 @@ class ChatFragment : Fragment() {
 
     private fun enterFocusedWindow() {
         when (focusedWindow) {
-            WindowSlot.BACK -> requireActivity().onBackPressedDispatcher.onBackPressed()
-            WindowSlot.PIN -> togglePin()
-            WindowSlot.MUTE -> toggleMute()
+            WindowSlot.HEADER -> {
+                activeWindow = WindowSlot.HEADER
+                focusHeaderAction(focusedHeaderAction)
+                modeHint?.text = "頂部控制：↑↓選 Back/Pin/Mute · Enter 執行 · Back 退出"
+            }
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
                 val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
@@ -416,22 +413,32 @@ class ChatFragment : Fragment() {
 
     private fun operateActive(delta: Int) {
         when (activeWindow) {
+            WindowSlot.HEADER -> moveFocusInsideHeader(delta)
             WindowSlot.MESSAGES -> if (delta < 0) pageUp() else pageDown()
             WindowSlot.REPLY -> moveFocusInsideReply(delta)
             else -> Unit
         }
     }
 
-    private fun pageDown() {
-        val list = view?.findViewById<RecyclerView>(R.id.messages)
-        val cur = view?.findFocus()
-        val next = cur?.focusSearch(View.FOCUS_DOWN)
-        val staysInList = next != null && list != null && isDescendantOf(next, list)
-        if (cur != null && next != null && next !== cur && staysInList) {
-            next.requestFocus()
-        } else {
-            list?.smoothScrollBy(0, 96)
+    private fun moveFocusInsideHeader(delta: Int) {
+        val order = listOf(HeaderAction.BACK, HeaderAction.PIN, HeaderAction.MUTE)
+        val idx = order.indexOf(focusedHeaderAction).coerceAtLeast(0)
+        val next = (idx + delta).coerceIn(0, order.lastIndex)
+        focusHeaderAction(order[next])
+    }
+
+    private fun focusHeaderAction(action: HeaderAction) {
+        focusedHeaderAction = action
+        when (action) {
+            HeaderAction.BACK -> view?.findViewById<ImageView>(R.id.header_back)?.requestFocus()
+            HeaderAction.PIN -> pinButton?.requestFocus()
+            HeaderAction.MUTE -> muteButton?.requestFocus()
         }
+    }
+
+    private fun pageDown() {
+        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+        list.smoothScrollBy(0, 128)
     }
 
     private fun moveFocusInsideReply(delta: Int) {

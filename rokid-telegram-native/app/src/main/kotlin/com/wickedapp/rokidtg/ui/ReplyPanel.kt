@@ -333,16 +333,21 @@ class ReplyPanel(
                         .putString("pending_transcript", text)
                         .apply()
                     bringAppToFront()
+                    root.postDelayed({ bringAppToFront() }, 750)
                     showFinalTranscript(text)
                 }
             }
             override fun onError(code: String, msg: String) {
                 Timber.tag("Voice").w("bridge error %s: %s", code, msg)
-                root.post { cancelText() }
+                root.post {
+                    bringAppToFront()
+                    cancelText()
+                }
             }
             override fun onTimeout(stage: String) {
                 Timber.tag("Voice").w("bridge timeout at stage=%s", stage)
                 root.post {
+                    bringAppToFront()
                     when (stage) {
                         "ready" -> {
                             BannerHost.show("语音助手未就绪", BannerHost.Kind.WARN)
