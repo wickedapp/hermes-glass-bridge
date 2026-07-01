@@ -334,8 +334,7 @@ class ChatFragment : Fragment() {
             }
             WindowSlot.REPLY -> {
                 activeWindow = WindowSlot.REPLY
-                val replyButton = view?.findViewById<View>(R.id.btn_reply)
-                replyButton?.requestFocus() ?: replyWindow?.requestFocus()
+                replyPanel?.openMenu()
                 modeHint?.text = "回覆內：↑↓選 · Enter 執行 · Back 退出"
             }
         }
@@ -369,13 +368,13 @@ class ChatFragment : Fragment() {
     }
 
     private fun moveFocusInsideReply(delta: Int) {
-        val dir = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
+        val primary = if (delta > 0) View.FOCUS_RIGHT else View.FOCUS_LEFT
+        val fallback = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
         val cur = view?.findFocus()
-        val next = cur?.focusSearch(dir)
         val replyRoot = replyWindow
-        if (next != null && replyRoot != null && isDescendantOf(next, replyRoot)) {
-            next.requestFocus()
-        }
+        val next = listOfNotNull(cur?.focusSearch(primary), cur?.focusSearch(fallback))
+            .firstOrNull { replyRoot != null && isDescendantOf(it, replyRoot) }
+        next?.requestFocus()
     }
 
     private fun isDescendantOf(child: View, ancestor: View): Boolean {
@@ -474,7 +473,7 @@ class MsgAdapter(
         private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
         fun bind(row: MsgRow) {
-            sender.text = row.senderLabel
+            sender.text = if (row.isOutgoing) "Me ▶" else "◀ ${row.senderLabel}"
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
                 is MsgRow.Unsupported -> "(${row.label})"
@@ -494,7 +493,7 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
-            hint.text = "${row.senderLabel} · photo"
+            hint.text = if (row.isOutgoing) "Me ▶ · photo" else "◀ ${row.senderLabel} · photo"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp
@@ -507,7 +506,7 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
-            hint.text = "${row.senderLabel} · video ${row.durationS}s"
+            hint.text = if (row.isOutgoing) "Me ▶ · video ${row.durationS}s" else "◀ ${row.senderLabel} · video ${row.durationS}s"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp
@@ -520,7 +519,7 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
-            hint.text = "${row.senderLabel} · voice ${row.durationS}s"
+            hint.text = if (row.isOutgoing) "Me ▶ · voice ${row.durationS}s" else "◀ ${row.senderLabel} · voice ${row.durationS}s"
             val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
             card.layoutParams = lp

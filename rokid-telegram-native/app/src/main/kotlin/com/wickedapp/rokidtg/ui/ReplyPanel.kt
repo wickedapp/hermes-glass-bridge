@@ -119,6 +119,11 @@ class ReplyPanel(
 
     fun currentState(): State = state
 
+    /** Open reply actions directly. Used when the bottom Reply button is activated from window focus. */
+    fun openMenu() {
+        go(State.MENU)
+    }
+
     /**
      * Handle back / BACK gesture. Collapses one level toward DEFAULT.
      * Returns true if consumed (so the activity doesn't pop the fragment).

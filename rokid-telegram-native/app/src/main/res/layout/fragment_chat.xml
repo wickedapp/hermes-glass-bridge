@@ -37,7 +37,7 @@
     <FrameLayout
         android:id="@+id/message_window"
         android:layout_width="match_parent"
-        android:layout_height="436px"
+        android:layout_height="468px"
         android:background="@drawable/bg_card_row_state"
         android:focusable="true"
         android:focusableInTouchMode="true"
@@ -58,35 +58,22 @@
             android:descendantFocusability="afterDescendants" />
     </FrameLayout>
 
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/reply_window"
         android:layout_width="match_parent"
-        android:layout_height="120px"
-        android:orientation="vertical"
-        android:gravity="top"
-        android:background="@drawable/bg_card_row_state"
+        android:layout_height="88px"
+        android:background="@color/bg"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:clickable="true"
-        android:paddingStart="10px"
-        android:paddingEnd="10px"
-        android:paddingTop="6px"
-        android:paddingBottom="6px">
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingTop="8px"
+        android:paddingBottom="8px">
 
         <include
             layout="@layout/overlay_reply"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4px"
-            android:text="Enter 開啟回覆 · ASR 先確認再送"
-            android:textColor="@color/primary_50"
-            android:textSize="@dimen/text_l5"
-            android:lineHeight="@dimen/line_l5"
-            android:singleLine="true"
-            android:ellipsize="end" />
-    </LinearLayout>
+    </FrameLayout>
 </LinearLayout>
