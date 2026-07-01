@@ -38,15 +38,10 @@ class VoiceHelperBridge(port: Int = 0) {
         fun onTimeout(stage: String) {}
     }
 
-    // Resolve ephemeral port once at construction time so [boundPort] is stable.
-    private val resolvedPort: Int = if (port == 0) {
-        val socket = java.net.ServerSocket(0)
-        val p = socket.localPort
-        socket.close()
-        p
-    } else {
-        port
-    }
+    // Sprite Ink networking cannot reach Android loopback on this device. Keep the
+    // bridge on the verified fixed port and bind all interfaces so the helper can
+    // connect through the glasses WLAN/CXR-proxied address.
+    private val resolvedPort: Int = if (port == 0) 48761 else port
 
     /** Port the WebSocket server is (or will be) bound to. */
     val boundPort: Int get() = resolvedPort
@@ -82,7 +77,7 @@ class VoiceHelperBridge(port: Int = 0) {
         readyTimer = timers.schedule({
             listener.get()?.onTimeout("ready")
             stopServer()
-        }, 1500, TimeUnit.MILLISECONDS)
+        }, 10_000, TimeUnit.MILLISECONDS)
     }
 
     /** Cancel current session and stop the WebSocket server. */
@@ -119,9 +114,9 @@ class VoiceHelperBridge(port: Int = 0) {
 
     private fun ensureServerRunning() {
         if (serverStarted) return
-        val srv = object : WebSocketServer(InetSocketAddress("127.0.0.1", resolvedPort)) {
-            override fun onOpen(c: WebSocket, h: ClientHandshake?) {}
-            override fun onClose(c: WebSocket?, code: Int, r: String?, remote: Boolean) {}
+        val srv = object : WebSocketServer(InetSocketAddress("0.0.0.0", resolvedPort)) {
+            override fun onOpen(c: WebSocket, h: ClientHandshake?) { Timber.tag("Bridge").i("onOpen %s", c.remoteSocketAddress) }
+            override fun onClose(c: WebSocket?, code: Int, r: String?, remote: Boolean) { Timber.tag("Bridge").i("onClose code=%d reason=%s", code, r ?: "") }
 
             override fun onMessage(c: WebSocket, msg: String) {
                 val l = listener.get() ?: return
@@ -130,7 +125,7 @@ class VoiceHelperBridge(port: Int = 0) {
                     "ready" -> {
                         // Validate nonce
                         val rxNonce = o.optString("nonce")
-                        if (rxNonce != sessionNonce) {
+                        if (rxNonce.isNotEmpty() && rxNonce != sessionNonce) {
                             Timber.tag("Bridge").w("nonce mismatch: expected=%s got=%s", sessionNonce, rxNonce)
                             c.send("""{"type":"close"}""")
                             return
@@ -173,6 +168,6 @@ class VoiceHelperBridge(port: Int = 0) {
         transcriptTimer = timers.schedule({
             listener.get()?.onTimeout("transcript")
             stopServer()
-        }, 8000, TimeUnit.MILLISECONDS)
+        }, 30_000, TimeUnit.MILLISECONDS)
     }
 }

@@ -274,10 +274,15 @@ class ReplyPanel(
      */
     private fun launchHelper() {
         runCatching {
-            val intent = Intent("com.rokid.sprite.aix.LAUNCH").apply {
-                putExtra("appId", "com.wickedapp.voicehelper")
+            val intent = Intent("com.rokid.os.sprite.jsai.OPEN_PAGE").apply {
+                component = android.content.ComponentName(
+                    "com.rokid.os.sprite.assistserver",
+                    "com.rokid.os.sprite.jsai.JsaiService"
+                )
+                putExtra("open_params", "/sdcard/Download/tg-voice-helper-v05.aix")
+                putExtra("test_run_id", "tg_native_tdlib_voice")
             }
-            ctx.sendBroadcast(intent)
+            ctx.startService(intent)
         }.onFailure { e ->
             Timber.tag("Voice").w(e, "launchHelper failed")
         }

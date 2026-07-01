@@ -1,6 +1,4 @@
 {
-  "appId": "com.wickedapp.voicehelper",
-  "name": "Voice Helper",
-  "version": "0.1.0",
-  "pages": ["pages/voice/voice"]
+  "pages": ["pages/voice/voice"],
+  "window": { "navigationBarTitleText": "TG Voice Helper" }
 }
