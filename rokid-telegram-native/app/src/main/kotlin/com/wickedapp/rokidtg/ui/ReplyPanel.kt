@@ -264,18 +264,20 @@ class ReplyPanel(
         })
     }
 
-    /** [VERIFY:launch-intent] — same intent as ComposerOverlay used. */
+    /**
+     * [VERIFY:launch-intent] The previous startActivity(SpriteMainActivity, appId=…) shape
+     * moves Sprite launcher to the foreground and pushes Rokid TG to the background —
+     * user perceives it as an app shutdown. Switching to a broadcast so we stay
+     * foreground while the Sprite runtime opens the mini-app in the background.
+     * If the broadcast is also silently dropped by the ROM, the bridge will time out at
+     * stage="ready" and the BannerHost fallback ("语音助手未就绪") kicks in.
+     */
     private fun launchHelper() {
         runCatching {
-            val intent = Intent().apply {
-                setClassName(
-                    "com.rokid.os.sprite.launcher",
-                    "com.rokid.os.sprite.launcher.main.SpriteMainActivity"
-                )
+            val intent = Intent("com.rokid.sprite.aix.LAUNCH").apply {
                 putExtra("appId", "com.wickedapp.voicehelper")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            ctx.startActivity(intent)
+            ctx.sendBroadcast(intent)
         }.onFailure { e ->
             Timber.tag("Voice").w(e, "launchHelper failed")
         }
