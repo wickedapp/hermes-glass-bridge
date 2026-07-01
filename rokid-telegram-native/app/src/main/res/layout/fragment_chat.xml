@@ -2,13 +2,30 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
-    android:paddingTop="@dimen/safe_top"
-    android:paddingBottom="@dimen/safe_bottom">
+    android:background="@color/bg">
 
-    <include
-        android:id="@+id/header"
-        layout="@layout/view_header" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120px"
+        android:orientation="vertical"
+        android:gravity="bottom"
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingBottom="8px">
+
+        <include
+            android:id="@+id/header"
+            layout="@layout/view_header" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="消息窗口：↑↓讀訊息 · Enter 選媒體 · Back 返回列表"
+            android:textColor="@color/primary_50"
+            android:textSize="@dimen/text_l5"
+            android:lineHeight="@dimen/line_l5"
+            android:singleLine="true" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/peer"
@@ -16,20 +33,48 @@
         android:layout_height="0dp"
         android:visibility="gone" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/messages"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingStart="8px"
-        android:paddingEnd="8px"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:descendantFocusability="afterDescendants" />
+        android:layout_height="360px"
+        android:paddingStart="10px"
+        android:paddingEnd="10px"
+        android:paddingTop="4px"
+        android:paddingBottom="4px">
 
-    <include
-        layout="@layout/overlay_reply"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/messages"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:descendantFocusability="afterDescendants" />
+    </FrameLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="160px"
+        android:orientation="vertical"
+        android:gravity="top"
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingTop="6px">
 
+        <include
+            layout="@layout/overlay_reply"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6px"
+            android:text="回覆窗口：Enter 開啟 · 語音轉文字先確認，不自動送出"
+            android:textColor="@color/primary_50"
+            android:textSize="@dimen/text_l5"
+            android:lineHeight="@dimen/line_l5"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
 </LinearLayout>

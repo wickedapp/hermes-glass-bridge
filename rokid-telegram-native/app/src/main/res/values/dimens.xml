@@ -1,23 +1,23 @@
 <resources>
-    <dimen name="text_l1">32px</dimen>
-    <dimen name="text_l2">24px</dimen>
-    <dimen name="text_l3">20px</dimen>
-    <dimen name="text_l4">18px</dimen>
+    <dimen name="text_l1">34px</dimen>
+    <dimen name="text_l2">28px</dimen>
+    <dimen name="text_l3">26px</dimen>
+    <dimen name="text_l4">22px</dimen>
     <dimen name="text_l5">16px</dimen>
-    <dimen name="line_l1">40px</dimen>
-    <dimen name="line_l2">32px</dimen>
-    <dimen name="line_l3">26px</dimen>
-    <dimen name="line_l4">24px</dimen>
+    <dimen name="line_l1">42px</dimen>
+    <dimen name="line_l2">36px</dimen>
+    <dimen name="line_l3">34px</dimen>
+    <dimen name="line_l4">30px</dimen>
     <dimen name="line_l5">22px</dimen>
     <dimen name="stroke_min">1.5px</dimen>
     <dimen name="stroke_med">2px</dimen>
     <dimen name="stroke_thick">4px</dimen>
     <dimen name="radius_card">12px</dimen>
     <dimen name="icon_app">40px</dimen>
-    <dimen name="icon_reg">20px</dimen>
-    <dimen name="icon_min">16px</dimen>
-    <!-- Safe area: top 160px / bottom 80px = cautious; content goes inside 480x400 centered -->
-    <dimen name="safe_top">160px</dimen>
-    <dimen name="safe_bottom">80px</dimen>
-    <dimen name="row_min_height">64px</dimen>
+    <dimen name="icon_reg">24px</dimen>
+    <dimen name="icon_min">18px</dimen>
+    <!-- Glasses HUD: 120px top + 400px operational safe band + 120px bottom controls -->
+    <dimen name="safe_top">120px</dimen>
+    <dimen name="safe_bottom">120px</dimen>
+    <dimen name="row_min_height">112px</dimen>
 </resources>

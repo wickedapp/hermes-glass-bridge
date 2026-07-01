@@ -1,21 +1,24 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="4px"
-    android:paddingBottom="4px"
+    android:paddingTop="6px"
+    android:paddingBottom="6px"
     android:paddingStart="12px"
     android:paddingEnd="12px">
 
     <TextView
         android:id="@+id/text"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="56px"
         android:textSize="@dimen/text_l3"
         android:lineHeight="@dimen/line_l3"
         android:textColor="@color/primary"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:padding="8px"
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingTop="10px"
+        android:paddingBottom="10px"
         android:background="@drawable/bg_card_row_state" />
-
 </FrameLayout>

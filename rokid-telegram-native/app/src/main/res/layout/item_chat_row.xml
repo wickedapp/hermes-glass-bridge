@@ -3,23 +3,54 @@
     android:layout_height="@dimen/row_min_height"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:focusable="true" android:focusableInTouchMode="true"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
     android:background="@drawable/bg_card_row_state"
-    android:paddingStart="12px" android:paddingEnd="12px"
-    android:layout_marginBottom="8px">
-    <LinearLayout android:orientation="vertical"
-        android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content">
-        <TextView android:id="@+id/title"
-            android:textSize="@dimen/text_l3" android:lineHeight="@dimen/line_l3"
-            android:textColor="@color/primary" android:singleLine="true"
-            android:layout_width="wrap_content" android:layout_height="wrap_content" />
-        <TextView android:id="@+id/preview"
-            android:textSize="@dimen/text_l4" android:lineHeight="@dimen/line_l4"
-            android:textColor="@color/primary_50" android:singleLine="true" android:ellipsize="end"
-            android:layout_width="match_parent" android:layout_height="wrap_content" />
+    android:paddingStart="10px"
+    android:paddingEnd="10px"
+    android:layout_marginBottom="10px">
+
+    <TextView
+        android:layout_width="28px"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="▶"
+        android:textColor="@color/primary_50"
+        android:textSize="@dimen/text_l4" />
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_l3"
+            android:lineHeight="@dimen/line_l3"
+            android:textColor="@color/primary"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2px"
+            android:textSize="@dimen/text_l4"
+            android:lineHeight="@dimen/line_l4"
+            android:textColor="@color/primary_50"
+            android:maxLines="2"
+            android:ellipsize="end" />
     </LinearLayout>
-    <ImageView android:id="@+id/unread"
-        android:layout_width="@dimen/icon_min" android:layout_height="@dimen/icon_min"
+
+    <ImageView
+        android:id="@+id/unread"
+        android:layout_width="@dimen/icon_min"
+        android:layout_height="@dimen/icon_min"
         android:src="@drawable/ic_unread_dot"
-        android:layout_marginStart="8px" android:visibility="gone" />
+        android:layout_marginStart="8px"
+        android:visibility="gone" />
 </LinearLayout>

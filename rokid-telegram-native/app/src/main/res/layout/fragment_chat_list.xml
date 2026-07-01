@@ -1,60 +1,95 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg"
-    android:paddingTop="@dimen/safe_top" android:paddingBottom="@dimen/safe_bottom">
+    android:background="@color/bg">
 
-    <include
-        android:id="@+id/header"
-        layout="@layout/view_header" />
-
-    <!-- Search pill: focusable row with icon + EditText. Type query, press Enter to search.
-         Pressing BACK from the EditText clears and restores the full chat list. -->
     <LinearLayout
-        android:id="@+id/search_bar"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_card_row_state"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp">
+        android:layout_height="120px"
+        android:orientation="vertical"
+        android:gravity="bottom"
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingBottom="8px">
 
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_search"
-            android:contentDescription="@null"
-            android:layout_marginEnd="6dp" />
+        <include
+            android:id="@+id/header"
+            layout="@layout/view_header" />
 
-        <EditText
-            android:id="@+id/search_input"
-            android:layout_width="0dp"
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="搜索"
-            android:textSize="14sp"
-            android:background="@null"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:maxLines="1"
+            android:text="↑↓ 選擇聊天 · Enter 開啟 · Back 系統返回"
+            android:textColor="@color/primary_50"
+            android:textSize="@dimen/text_l5"
+            android:lineHeight="@dimen/line_l5"
             android:singleLine="true" />
-
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:scrollbars="none"
-        android:focusable="true"
-        android:focusableInTouchMode="true" />
+    <!-- Hidden compatibility search controls; current glasses UI is focus-list first. -->
+    <LinearLayout
+        android:id="@+id/search_bar"
+        android:layout_width="0px"
+        android:layout_height="0px"
+        android:visibility="gone">
+        <EditText
+            android:id="@+id/search_input"
+            android:layout_width="0px"
+            android:layout_height="0px"
+            android:visibility="gone" />
+    </LinearLayout>
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="400px"
+        android:paddingStart="12px"
+        android:paddingEnd="12px"
+        android:paddingTop="6px"
+        android:paddingBottom="6px">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120px"
+        android:orientation="vertical"
+        android:gravity="top"
+        android:paddingStart="16px"
+        android:paddingEnd="16px"
+        android:paddingTop="8px">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card_stroke_40"
+            android:paddingStart="12px"
+            android:paddingEnd="12px"
+            android:paddingTop="8px"
+            android:paddingBottom="8px"
+            android:text="窗口模式：只有被框選的卡片會操作"
+            android:textColor="@color/primary"
+            android:textSize="@dimen/text_l4"
+            android:lineHeight="@dimen/line_l4"
+            android:singleLine="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6px"
+            android:text="不顯示雜訊搜尋列；用 ↑↓ / Enter 完成主操作。"
+            android:textColor="@color/primary_50"
+            android:textSize="@dimen/text_l5"
+            android:lineHeight="@dimen/line_l5"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
 </LinearLayout>
