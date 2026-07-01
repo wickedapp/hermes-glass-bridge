@@ -37,7 +37,7 @@
     <FrameLayout
         android:id="@+id/message_window"
         android:layout_width="match_parent"
-        android:layout_height="468px"
+        android:layout_height="400px"
         android:background="@drawable/bg_card_row_state"
         android:focusable="true"
         android:focusableInTouchMode="true"
@@ -61,15 +61,15 @@
     <FrameLayout
         android:id="@+id/reply_window"
         android:layout_width="match_parent"
-        android:layout_height="88px"
+        android:layout_height="156px"
         android:background="@color/bg"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:clickable="true"
         android:paddingStart="12px"
         android:paddingEnd="12px"
-        android:paddingTop="8px"
-        android:paddingBottom="8px">
+        android:paddingTop="24px"
+        android:paddingBottom="12px">
 
         <include
             layout="@layout/overlay_reply"

@@ -93,6 +93,10 @@ class ReplyPanel(
         btnText.setOnClickListener  { startTextReply() }
         btnBt.setOnClickListener    { startBtReply() }
 
+        btnVoice.setOnFocusChangeListener { _, has -> if (has) BannerHost.show("Voice", BannerHost.Kind.INFO) }
+        btnText.setOnFocusChangeListener  { _, has -> if (has) BannerHost.show("Dictate", BannerHost.Kind.INFO) }
+        btnBt.setOnFocusChangeListener    { _, has -> if (has) BannerHost.show("Keyboard", BannerHost.Kind.INFO) }
+
         btnVoiceSend.setOnClickListener   { stopAndSendVoice() }
         btnVoiceCancel.setOnClickListener { cancelVoice() }
 
@@ -234,6 +238,15 @@ class ReplyPanel(
         launchHelper()
     }
 
+    private fun bringAppToFront() {
+        runCatching {
+            val intent = Intent(ctx, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            ctx.startActivity(intent)
+        }
+    }
+
     private fun startBridge() {
         bridge.start(object : VoiceHelperBridge.Listener {
             override fun onInterim(text: String) {
@@ -244,9 +257,11 @@ class ReplyPanel(
             }
             override fun onFinal(text: String) {
                 root.post {
+                    bringAppToFront()
                     textFinal = text
-                    textTranscript.text = text
+                    textTranscript.text = "確認發送？\n$text"
                     textTranscript.setTextColor(ctx.getColor(R.color.primary))
+                    btnTextSend.requestFocus()
                 }
             }
             override fun onError(code: String, msg: String) {

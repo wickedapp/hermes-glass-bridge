@@ -280,7 +280,15 @@ class ChatFragment : Fragment() {
                 true
             }
             SpriteBroadcast.Gesture.TAP -> {
-                if (activeWindow == null) enterFocusedWindow() else view?.findFocus()?.performClick()
+                val focused = view?.findFocus()
+                val replyRoot = replyWindow
+                if (focused != null && replyRoot != null && isDescendantOf(focused, replyRoot) && focused !== replyRoot) {
+                    focused.performClick()
+                } else if (activeWindow == null) {
+                    enterFocusedWindow()
+                } else {
+                    focused?.performClick()
+                }
                 true
             }
             SpriteBroadcast.Gesture.BACK -> {
@@ -368,13 +376,13 @@ class ChatFragment : Fragment() {
     }
 
     private fun moveFocusInsideReply(delta: Int) {
-        val primary = if (delta > 0) View.FOCUS_RIGHT else View.FOCUS_LEFT
-        val fallback = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
+        val dir = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
         val cur = view?.findFocus()
         val replyRoot = replyWindow
-        val next = listOfNotNull(cur?.focusSearch(primary), cur?.focusSearch(fallback))
-            .firstOrNull { replyRoot != null && isDescendantOf(it, replyRoot) }
-        next?.requestFocus()
+        val next = cur?.focusSearch(dir)
+        if (next != null && replyRoot != null && isDescendantOf(next, replyRoot)) {
+            next.requestFocus()
+        }
     }
 
     private fun isDescendantOf(child: View, ancestor: View): Boolean {
