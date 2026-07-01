@@ -315,9 +315,9 @@ class ChatFragment : Fragment() {
             WindowSlot.REPLY -> replyWindow?.requestFocus()
         }
         modeHint?.text = when (slot) {
-            WindowSlot.BACK -> "焦點模式：Enter 返回列表 · ↓ 到消息窗口"
-            WindowSlot.MESSAGES -> "焦點模式：Enter 進入消息窗口 · ↑↓換窗口"
-            WindowSlot.REPLY -> "焦點模式：Enter 進入回覆窗口 · ↑ 到消息窗口"
+            WindowSlot.BACK -> "Enter 返回 · ↓ 到訊息"
+            WindowSlot.MESSAGES -> "Enter 進入訊息 · ↑↓換窗口"
+            WindowSlot.REPLY -> "Enter 進入回覆 · ↑ 到訊息"
         }
     }
 
@@ -330,13 +330,13 @@ class ChatFragment : Fragment() {
                 list.isFocusable = true
                 list.isFocusableInTouchMode = true
                 (list.findFocus() ?: list.getChildAt(0) ?: list).requestFocus()
-                modeHint?.text = "消息窗口內：↑↓讀/滾動 · Enter 開啟媒體 · Back 退出窗口"
+                modeHint?.text = "訊息內：↑↓滾動 · Enter 開啟 · Back 退出"
             }
             WindowSlot.REPLY -> {
                 activeWindow = WindowSlot.REPLY
                 val replyButton = view?.findViewById<View>(R.id.btn_reply)
                 replyButton?.requestFocus() ?: replyWindow?.requestFocus()
-                modeHint?.text = "回覆窗口內：↑↓選功能 · Enter 執行 · Back 退出/取消"
+                modeHint?.text = "回覆內：↑↓選 · Enter 執行 · Back 退出"
             }
         }
     }
@@ -469,14 +469,22 @@ class MsgAdapter(
     // ---- View Holders -------------------------------------------------------
 
     class TextVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val bubble: View = v.findViewById(R.id.bubble)
+        private val sender: android.widget.TextView = v.findViewById(R.id.sender)
         private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
         fun bind(row: MsgRow) {
+            sender.text = row.senderLabel
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
                 is MsgRow.Unsupported -> "(${row.label})"
                 else                  -> "(unsupported)"
             }
+            val lp = bubble.layoutParams as android.widget.FrameLayout.LayoutParams
+            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
+            bubble.layoutParams = lp
+            sender.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
+            txt.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
         }
     }
 
@@ -486,7 +494,10 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
-            hint.text = "(photo)"
+            hint.text = "${row.senderLabel} · photo"
+            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
+            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
+            card.layoutParams = lp
             card.setOnClickListener { onTap(row.fileId) }
         }
     }
@@ -496,7 +507,10 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
-            hint.text = "(video ${row.durationS}s)"
+            hint.text = "${row.senderLabel} · video ${row.durationS}s"
+            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
+            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
+            card.layoutParams = lp
             card.setOnClickListener { onTap(row.fileId) }
         }
     }
@@ -506,7 +520,10 @@ class MsgAdapter(
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
-            hint.text = "(voice ${row.durationS}s)"
+            hint.text = "${row.senderLabel} · voice ${row.durationS}s"
+            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
+            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
+            card.layoutParams = lp
             card.setOnClickListener { onTap(row.fileId) }
         }
     }

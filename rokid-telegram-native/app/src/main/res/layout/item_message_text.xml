@@ -1,24 +1,42 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="6px"
-    android:paddingBottom="6px"
-    android:paddingStart="12px"
-    android:paddingEnd="12px">
+    android:paddingTop="4px"
+    android:paddingBottom="4px"
+    android:paddingStart="6px"
+    android:paddingEnd="6px">
 
-    <TextView
-        android:id="@+id/text"
-        android:layout_width="match_parent"
+    <LinearLayout
+        android:id="@+id/bubble"
+        android:layout_width="360px"
         android:layout_height="wrap_content"
-        android:minHeight="56px"
-        android:textSize="@dimen/text_l3"
-        android:lineHeight="@dimen/line_l3"
-        android:textColor="@color/primary"
+        android:orientation="vertical"
+        android:minHeight="54px"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:paddingStart="12px"
-        android:paddingEnd="12px"
-        android:paddingTop="10px"
-        android:paddingBottom="10px"
-        android:background="@drawable/bg_card_row_state" />
+        android:paddingStart="10px"
+        android:paddingEnd="10px"
+        android:paddingTop="6px"
+        android:paddingBottom="8px"
+        android:background="@drawable/bg_card_row_state">
+
+        <TextView
+            android:id="@+id/sender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_l4"
+            android:lineHeight="@dimen/line_l4"
+            android:textColor="@color/primary_80"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2px"
+            android:textSize="@dimen/text_l4"
+            android:lineHeight="@dimen/line_l4"
+            android:textColor="@color/primary" />
+    </LinearLayout>
 </FrameLayout>

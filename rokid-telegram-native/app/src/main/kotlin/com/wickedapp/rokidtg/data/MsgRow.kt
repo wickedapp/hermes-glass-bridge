@@ -4,47 +4,49 @@ sealed class MsgRow {
     abstract val id: Long
     abstract val date: Int
     abstract val isOutgoing: Boolean
+    abstract val senderLabel: String
 
     data class Text(
         override val id: Long,
         override val date: Int,
         override val isOutgoing: Boolean,
+        override val senderLabel: String,
         val text: String,
     ) : MsgRow()
 
-    /** Placeholder — full viewer added in Task 13. */
     data class Photo(
         override val id: Long,
         override val date: Int,
         override val isOutgoing: Boolean,
+        override val senderLabel: String,
         val fileId: Int,
         val width: Int,
         val height: Int,
     ) : MsgRow()
 
-    /** Placeholder — full viewer added in Task 13. */
     data class Video(
         override val id: Long,
         override val date: Int,
         override val isOutgoing: Boolean,
+        override val senderLabel: String,
         val fileId: Int,
         val durationS: Int,
     ) : MsgRow()
 
-    /** Placeholder — full viewer added in Task 13. */
     data class Voice(
         override val id: Long,
         override val date: Int,
         override val isOutgoing: Boolean,
+        override val senderLabel: String,
         val fileId: Int,
         val durationS: Int,
     ) : MsgRow()
 
-    /** Any content type not yet handled — carries a human-readable label. */
     data class Unsupported(
         override val id: Long,
         override val date: Int,
         override val isOutgoing: Boolean,
+        override val senderLabel: String,
         val label: String,
     ) : MsgRow()
 }
