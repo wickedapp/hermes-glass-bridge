@@ -1,0 +1,6 @@
+{
+  "appId": "com.wickedapp.rokidtg.mockup",
+  "name": "TG Glass Mockup",
+  "version": "0.1.0",
+  "pages": ["pages/main/main"]
+}

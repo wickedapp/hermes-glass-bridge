@@ -6,6 +6,7 @@ Mac + Rokid Glasses projects under one roof. Three independent products live her
 |---|---|---|
 | `app/` + `android-app/` + `web/` | **Hermes Glass Terminal** — FastAPI bridge + Android WebView wrapper that turns the Rokid Glasses into a HUD terminal for Hermes Agent / Claude / Codex on the Mac. | Active (the original project; see `docs/DEV_CONSOLE_PLAN.md`). |
 | `rokid-telegram-native/` + `voice-helper/` | **Rokid Telegram (native)** — sideloaded bare-metal Android APK on the glasses that talks to Telegram directly (TDLib), plus a Sprite Ink companion that does on-device voice-to-text via Rokid's native ASR. Internet comes from the vivo X200 Ultra over BT-PAN. | **v1 in PR #1.** Spec: `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`. |
+| `rokid-telegram-mockup/` | **Rokid Telegram UI mockup** — Sprite Ink mini-program using the official Rokid scaffold style for quick glasses-first UX review (480×400 safe area, DPAD/Enter/Back flow). | Mockup / disposable. Push with `scripts/push-telegram-mockup.sh`. |
 | `rokid-telegram-app/` | Earlier glasses-side WebView prototype. | **Superseded.** Reference only. |
 | `rokid-telegram-phone-app/` | Earlier phone-side WebView companion. | **Superseded.** Reference only. |
 | `rokid-aiui-mic-test/` | Probe of the Rokid Sprite/Ink `SpeechRecognition` runtime. | Reference; pattern used by `voice-helper/`. |
@@ -84,6 +85,7 @@ hermes-glass-bridge/
 ├── web/                            Hermes HUD UI
 ├── android-app/                    Hermes Terminal APK (WebView)
 ├── rokid-telegram-native/          ← Rokid Telegram, native APK + Sprite Ink helper
+├── rokid-telegram-mockup/          ← Sprite Ink UI mockup for glasses-first Telegram UX review
 ├── voice-helper/                   ← Sprite Ink voice→text companion (.aix)
 ├── rokid-telegram-app/             [SUPERSEDED] earlier glasses WebView prototype
 ├── rokid-telegram-phone-app/       [SUPERSEDED] earlier phone WebView companion
