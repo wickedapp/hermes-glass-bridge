@@ -54,12 +54,14 @@ class ChatFragment : Fragment() {
         (requireActivity() as? MainActivity)?.optionalService()?.getMessageRepo(chatId)
 
     private var replyPanel: ReplyPanel? = null
-    private enum class WindowSlot { BACK, MESSAGES, REPLY }
+    private enum class WindowSlot { BACK, PIN, MUTE, MESSAGES, REPLY }
     private var focusedWindow: WindowSlot = WindowSlot.MESSAGES
     private var activeWindow: WindowSlot? = null
     private var modeHint: TextView? = null
     private var messageWindow: View? = null
     private var replyWindow: View? = null
+    private var pinButton: TextView? = null
+    private var muteButton: TextView? = null
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -75,6 +77,15 @@ class ChatFragment : Fragment() {
         backWindow.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+        pinButton = view.findViewById<TextView>(R.id.header_pin).also { btn ->
+            btn.visibility = View.VISIBLE
+            btn.setOnClickListener { togglePin() }
+        }
+        muteButton = view.findViewById<TextView>(R.id.header_mute).also { btn ->
+            btn.visibility = View.VISIBLE
+            btn.setOnClickListener { toggleMute() }
+        }
+        refreshHeaderControls()
         modeHint = view.findViewById(R.id.mode_hint)
         messageWindow = view.findViewById(R.id.message_window)
         replyWindow = view.findViewById(R.id.reply_window)
@@ -313,7 +324,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun nextWindow(delta: Int): WindowSlot {
-        val order = listOf(WindowSlot.BACK, WindowSlot.MESSAGES, WindowSlot.REPLY)
+        val order = listOf(WindowSlot.BACK, WindowSlot.PIN, WindowSlot.MUTE, WindowSlot.MESSAGES, WindowSlot.REPLY)
         val idx = order.indexOf(focusedWindow).coerceAtLeast(0)
         val next = (idx + delta).coerceIn(0, order.lastIndex)
         return order[next]
@@ -328,11 +339,15 @@ class ChatFragment : Fragment() {
         }
         when (slot) {
             WindowSlot.BACK -> view?.findViewById<ImageView>(R.id.header_back)?.requestFocus()
+            WindowSlot.PIN -> pinButton?.requestFocus()
+            WindowSlot.MUTE -> muteButton?.requestFocus()
             WindowSlot.MESSAGES -> messageWindow?.requestFocus()
             WindowSlot.REPLY -> replyWindow?.requestFocus()
         }
         modeHint?.text = when (slot) {
-            WindowSlot.BACK -> "Enter 返回 · ↓ 到訊息"
+            WindowSlot.BACK -> "Enter 返回 · ↓ 到 Pin"
+            WindowSlot.PIN -> "Enter Pin/Unpin · ↑↓換窗口"
+            WindowSlot.MUTE -> "Enter 靜音/開通知 · ↑↓換窗口"
             WindowSlot.MESSAGES -> "Enter 進入訊息 · ↑↓換窗口"
             WindowSlot.REPLY -> "Enter 進入回覆 · ↑ 到訊息"
         }
@@ -341,6 +356,8 @@ class ChatFragment : Fragment() {
     private fun enterFocusedWindow() {
         when (focusedWindow) {
             WindowSlot.BACK -> requireActivity().onBackPressedDispatcher.onBackPressed()
+            WindowSlot.PIN -> togglePin()
+            WindowSlot.MUTE -> toggleMute()
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
                 val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
@@ -354,6 +371,39 @@ class ChatFragment : Fragment() {
                 replyPanel?.openMenu()
                 modeHint?.text = "回覆內：↑↓選 · Enter 執行 · Back 退出"
             }
+        }
+    }
+
+    private fun togglePin() {
+        val binder = (requireActivity() as? MainActivity)?.optionalService() ?: return
+        val ok = binder.togglePinned(chatId)
+        if (!ok) {
+            BannerHost.show("最多 Pin 5 個對話", BannerHost.Kind.WARN)
+        } else {
+            val pinned = binder.getChatPrefs().isPinned(chatId)
+            BannerHost.show(if (pinned) "已 Pin 到最上方" else "已取消 Pin", BannerHost.Kind.INFO)
+        }
+        refreshHeaderControls()
+    }
+
+    private fun toggleMute() {
+        val binder = (requireActivity() as? MainActivity)?.optionalService() ?: return
+        val muted = binder.toggleMuted(chatId)
+        BannerHost.show(if (muted) "此對話已靜音" else "此對話通知已開", BannerHost.Kind.INFO)
+        refreshHeaderControls()
+    }
+
+    private fun refreshHeaderControls() {
+        val prefs = (requireActivity() as? MainActivity)?.optionalService()?.getChatPrefs()
+        val pinned = prefs?.isPinned(chatId) == true
+        val muted = prefs?.isMuted(chatId) == true
+        pinButton?.apply {
+            text = if (pinned) "★PIN" else "PIN"
+            setTextColor(context.getColor(if (pinned) R.color.primary else R.color.primary_50))
+        }
+        muteButton?.apply {
+            text = if (muted) "MUTED" else "MUTE"
+            setTextColor(context.getColor(if (muted) R.color.primary else R.color.primary_50))
         }
     }
 

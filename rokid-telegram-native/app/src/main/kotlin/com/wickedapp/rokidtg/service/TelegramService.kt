@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.wickedapp.rokidtg.BuildConfig
 import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.data.ChatPrefs
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.ui.BannerHost
@@ -39,6 +40,8 @@ class TelegramService : LifecycleService() {
     var notifications: NotificationCenter? = null
         private set
 
+    private lateinit var chatPrefs: ChatPrefs
+
     /** Single ChatRepo for this service lifetime; retains its live-update cache. */
     private var chatRepo: ChatRepo? = null
 
@@ -52,6 +55,7 @@ class TelegramService : LifecycleService() {
         fun getAuthStateFlow(): StateFlow<TdApi.AuthorizationState?> = this@TelegramService.authState
         fun getLastAuthErrorFlow(): StateFlow<String?> = this@TelegramService.lastAuthError
         fun getNotifications(): NotificationCenter? = notifications
+        fun getChatPrefs(): ChatPrefs = chatPrefs
 
         fun clearAuthError() { _lastAuthError.value = null }
 
@@ -102,7 +106,19 @@ class TelegramService : LifecycleService() {
         /** Returns (or lazily creates) the service-scoped ChatRepo. */
         fun getChatRepo(): ChatRepo? {
             val c = client ?: return null
-            return chatRepo ?: ChatRepo(c, lifecycleScope).also { chatRepo = it }
+            return chatRepo ?: ChatRepo(c, lifecycleScope, chatPrefs).also { chatRepo = it }
+        }
+
+        fun togglePinned(chatId: Long): Boolean {
+            val ok = chatPrefs.togglePinned(chatId)
+            chatRepo?.refreshControls()
+            return ok
+        }
+
+        fun toggleMuted(chatId: Long): Boolean {
+            val muted = chatPrefs.toggleMuted(chatId)
+            chatRepo?.refreshControls()
+            return muted
         }
 
         /** Returns (or lazily creates) a service-scoped MessageRepo for [chatId]. */
@@ -122,6 +138,7 @@ class TelegramService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIF_ID, buildOngoingNotif())
+        chatPrefs = ChatPrefs(this)
 
         val c = TdLibClient(
             dbDir    = File(filesDir, "tdlib/db"),
@@ -130,7 +147,7 @@ class TelegramService : LifecycleService() {
             apiHash  = BuildConfig.TG_API_HASH,
         )
         client = c
-        notifications = NotificationCenter(this, c, lifecycleScope)
+        notifications = NotificationCenter(this, c, lifecycleScope, chatPrefs)
         networkMonitor = NetworkMonitor(this, c)
 
         lifecycleScope.launch {
@@ -175,7 +192,7 @@ class TelegramService : LifecycleService() {
         return Notification.Builder(this, CHAN_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("connected")
-            .setSmallIcon(R.drawable.ic_unread_dot)
+            .setSmallIcon(R.drawable.ic_stat_rokid_tg)
             .setOngoing(true)
             .build()
     }

@@ -68,8 +68,8 @@
         android:clickable="true"
         android:paddingStart="12px"
         android:paddingEnd="12px"
-        android:paddingTop="24px"
-        android:paddingBottom="12px">
+        android:paddingTop="10px"
+        android:paddingBottom="8px">
 
         <include
             layout="@layout/overlay_reply"

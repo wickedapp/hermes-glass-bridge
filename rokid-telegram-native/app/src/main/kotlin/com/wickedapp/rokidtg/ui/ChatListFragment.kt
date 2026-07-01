@@ -123,7 +123,11 @@ class RowVH(v: View, private val onClick: (Long) -> Unit) : RecyclerView.ViewHol
 
     fun bind(r: ChatRow) {
         id = r.id
-        title.text = r.title
+        title.text = buildString {
+            if (r.isPinned) append("★ ")
+            if (r.isMuted) append("🔕 ")
+            append(r.title)
+        }
         preview.text = r.preview
         unread.visibility = if (r.unreadCount > 0) View.VISIBLE else View.GONE
     }

@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Android adaptive icon foreground: keep the full glyph inside the official 72dp safe zone. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#40FF5E"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M23,30 L84,18 L69,88 L53,62 L35,78 L40,56 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#40FF5E"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M40,56 L84,18 M53,62 L69,88" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#40FF5E"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M18,54 C18,34 34,18 54,18 M90,54 C90,74 74,90 54,90" />
+</vector>

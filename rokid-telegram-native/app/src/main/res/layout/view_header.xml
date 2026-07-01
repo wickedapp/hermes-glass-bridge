@@ -47,4 +47,34 @@
             android:singleLine="true"
             android:ellipsize="end" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/header_pin"
+        android:layout_width="42px"
+        android:layout_height="28px"
+        android:layout_marginStart="6px"
+        android:background="@drawable/bg_card_row_state"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="false"
+        android:gravity="center"
+        android:text="PIN"
+        android:textColor="@color/primary_50"
+        android:textSize="13px"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/header_mute"
+        android:layout_width="42px"
+        android:layout_height="28px"
+        android:layout_marginStart="6px"
+        android:background="@drawable/bg_card_row_state"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="false"
+        android:gravity="center"
+        android:text="MUTE"
+        android:textColor="@color/primary_50"
+        android:textSize="12px"
+        android:visibility="gone" />
 </LinearLayout>

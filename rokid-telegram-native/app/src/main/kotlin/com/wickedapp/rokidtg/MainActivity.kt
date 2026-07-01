@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     /** Lazily created, shared VoiceHelperBridge. Closed in onDestroy. */
     private var voiceBridge: VoiceHelperBridge? = null
+    private var pendingOpenChatId: Long? = null
 
     /**
      * Set to true when voice helper ready-timeout fires; disables Path 1 (voice→text)
@@ -74,8 +75,10 @@ class MainActivity : AppCompatActivity(), GestureSink {
             lifecycleScope.launch {
                 binder.getAuthStateFlow().filterNotNull().collect { state ->
                     routeForAuthState(state)
+                    if (state is TdApi.AuthorizationStateReady) openPendingDeepLinkIfAny()
                 }
             }
+            openPendingDeepLinkIfAny()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             svc = null
@@ -154,15 +157,25 @@ class MainActivity : AppCompatActivity(), GestureSink {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleDeepLink(intent)
         binding.root.post { consumePendingVoiceHandoff() }
     }
 
     private fun handleDeepLink(intent: Intent?) {
         val chatId = intent?.getLongExtra("openChatId", -1L)?.takeIf { it != -1L } ?: return
+        pendingOpenChatId = chatId
         if (svc?.getClient() == null) return
+        openPendingDeepLinkIfAny()
+    }
+
+    private fun openPendingDeepLinkIfAny() {
+        val chatId = pendingOpenChatId ?: return
+        if (svc?.getClient() == null) return
+        pendingOpenChatId = null
+        val title = svc?.getChatRepo()?.chats?.value?.firstOrNull { it.id == chatId }?.title ?: ""
         supportFragmentManager.beginTransaction()
-            .replace(binding.container.id, ChatFragment.newInstance(chatId, ""))
+            .replace(binding.container.id, ChatFragment.newInstance(chatId, title))
             .addToBackStack("chat:$chatId")
             .commitAllowingStateLoss()
         svc?.getNotifications()?.currentOpenChatId = chatId

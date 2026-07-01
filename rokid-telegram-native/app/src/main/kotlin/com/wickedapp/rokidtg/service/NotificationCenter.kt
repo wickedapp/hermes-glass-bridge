@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.data.ChatPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ class NotificationCenter(
     private val ctx: Context,
     private val td: TdLibClient,
     private val scope: CoroutineScope,
+    private val prefs: ChatPrefs,
 ) {
     @Volatile var currentOpenChatId: Long? = null
 
@@ -28,8 +30,9 @@ class NotificationCenter(
                 val m = upd.message
                 if (m.isOutgoing) return@collect
                 if (m.chatId == currentOpenChatId) return@collect
+                if (prefs.isMuted(m.chatId)) return@collect
                 td.send(TdApi.GetChat(m.chatId)) { obj ->
-                    if (obj is TdApi.Chat && obj.notificationSettings.muteFor == 0) {
+                    if (obj is TdApi.Chat && obj.notificationSettings.muteFor == 0 && !prefs.isMuted(m.chatId)) {
                         post(obj, m)
                     }
                 }
@@ -42,7 +45,7 @@ class NotificationCenter(
             ?: m.content.javaClass.simpleName
         val intent = Intent(ctx, MainActivity::class.java).apply {
             putExtra("openChatId", m.chatId)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pi = PendingIntent.getActivity(
             ctx,
@@ -53,8 +56,10 @@ class NotificationCenter(
         val notif = NotificationCompat.Builder(ctx, CHAN_BANNER)
             .setContentTitle(chat.title)
             .setContentText(preview)
-            .setSmallIcon(R.drawable.ic_unread_dot)
+            .setSmallIcon(R.drawable.ic_stat_rokid_tg)
             .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
             .build()
         ctx.getSystemService(NotificationManager::class.java)
@@ -67,7 +72,7 @@ class NotificationCenter(
         val ch = NotificationChannel(
             CHAN_BANNER,
             "New messages",
-            NotificationManager.IMPORTANCE_DEFAULT,
+            NotificationManager.IMPORTANCE_HIGH,
         )
         nm.createNotificationChannel(ch)
     }

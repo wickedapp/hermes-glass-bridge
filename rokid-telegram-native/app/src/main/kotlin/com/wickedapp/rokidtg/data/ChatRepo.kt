@@ -24,9 +24,15 @@ data class ChatRow(
     val preview: String,
     val unreadCount: Int,
     val timestamp: Long,
+    val isPinned: Boolean = false,
+    val isMuted: Boolean = false,
 )
 
-class ChatRepo(private val td: TdClientFacade, private val scope: CoroutineScope) {
+class ChatRepo(
+    private val td: TdClientFacade,
+    private val scope: CoroutineScope,
+    private val prefs: ChatPrefs? = null,
+) {
 
     private val cache = ConcurrentHashMap<Long, ChatRow>()
     private val _chats = MutableStateFlow<List<ChatRow>>(emptyList())
@@ -77,7 +83,23 @@ class ChatRepo(private val td: TdClientFacade, private val scope: CoroutineScope
 
     private fun upsert(c: TdApi.Chat) {
         cache[c.id] = chatToRow(c)
-        _chats.value = cache.values.sortedByDescending { it.timestamp }
+        publish()
+    }
+
+    fun refreshControls() {
+        cache.replaceAll { _, row ->
+            row.copy(isPinned = isPinned(row.id), isMuted = isMuted(row.id))
+        }
+        publish()
+    }
+
+    private fun publish() {
+        val pinned = prefs?.pinnedChatIds().orEmpty()
+        val pinnedIndex = pinned.withIndex().associate { it.value to it.index }
+        _chats.value = cache.values.sortedWith(
+            compareBy<ChatRow> { pinnedIndex[it.id] ?: Int.MAX_VALUE }
+                .thenByDescending { it.timestamp }
+        )
     }
 
     private fun chatToRow(c: TdApi.Chat): ChatRow = ChatRow(
@@ -86,7 +108,12 @@ class ChatRepo(private val td: TdClientFacade, private val scope: CoroutineScope
         preview = (c.lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
         unreadCount = c.unreadCount,
         timestamp = c.lastMessage?.date?.toLong()?.times(1000L) ?: 0L,
+        isPinned = isPinned(c.id),
+        isMuted = isMuted(c.id),
     )
+
+    private fun isPinned(chatId: Long): Boolean = prefs?.isPinned(chatId) == true
+    private fun isMuted(chatId: Long): Boolean = prefs?.isMuted(chatId) == true
 
     private suspend fun subscribeUpdates() {
         td.updates.filterIsInstance<TdApi.UpdateNewMessage>().collect { upd ->
