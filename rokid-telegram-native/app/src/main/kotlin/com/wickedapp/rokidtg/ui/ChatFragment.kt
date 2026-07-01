@@ -18,6 +18,7 @@ import com.wickedapp.rokidtg.data.MessageRepo
 import com.wickedapp.rokidtg.service.TdLibClient
 import com.wickedapp.rokidtg.data.MsgRow
 import com.wickedapp.rokidtg.media.MediaPlayerPool
+import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -53,6 +54,12 @@ class ChatFragment : Fragment() {
         (requireActivity() as? MainActivity)?.optionalService()?.getMessageRepo(chatId)
 
     private var replyPanel: ReplyPanel? = null
+    private enum class WindowSlot { BACK, MESSAGES, REPLY }
+    private var focusedWindow: WindowSlot = WindowSlot.MESSAGES
+    private var activeWindow: WindowSlot? = null
+    private var modeHint: TextView? = null
+    private var messageWindow: View? = null
+    private var replyWindow: View? = null
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -64,9 +71,13 @@ class ChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, state: Bundle?) {
         view.findViewById<TextView>(R.id.header_title).text = chatTitle
-        view.findViewById<ImageView>(R.id.header_back).setOnClickListener {
+        val backWindow = view.findViewById<ImageView>(R.id.header_back)
+        backWindow.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+        modeHint = view.findViewById(R.id.mode_hint)
+        messageWindow = view.findViewById(R.id.message_window)
+        replyWindow = view.findViewById(R.id.reply_window)
 
         val list = view.findViewById<RecyclerView>(R.id.messages)
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
@@ -116,9 +127,12 @@ class ChatFragment : Fragment() {
             replyPanel = ReplyPanel(view, tdClient, chatId, bridge, sendVoiceNote)
         }
 
-        // Default focus on the message list so SWIPE_FORWARD/BACK navigate messages
-        // straight away. DPAD_DOWN past the last message reaches the Reply button.
-        list.post { list.requestFocus() }
+        messageWindow?.setOnClickListener { enterFocusedWindow() }
+        replyWindow?.setOnClickListener { enterFocusedWindow() }
+
+        // Default to a focus container, not the scrollable list. User must Enter the
+        // message window before Up/Down scrolls messages.
+        list.post { focusWindow(WindowSlot.MESSAGES) }
 
         // Intercept back-press to collapse the reply panel (VOICE/TEXT/BT → MENU → DEFAULT)
         // before letting the system pop the fragment back to the chat list.
@@ -126,6 +140,10 @@ class ChatFragment : Fragment() {
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (activeWindow != null) {
+                        exitActiveWindow()
+                        return
+                    }
                     if (replyPanel?.onBack() == true) return
                     // Disable this callback and let the dispatcher do default pop.
                     isEnabled = false
@@ -241,6 +259,122 @@ class ChatFragment : Fragment() {
             next.requestFocus()
         } else {
             viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
+        }
+    }
+
+    /**
+     * Window-focus controller for the conversation page.
+     *
+     * Focus mode: Up/Down moves Back ⇄ Message History ⇄ Reply; Enter activates.
+     * Active message mode: Up/Down scroll/select messages; Enter opens focused media.
+     * Active reply mode: Up/Down moves inside reply controls; Enter performs control.
+     */
+    fun onWindowGesture(g: SpriteBroadcast.Gesture): Boolean {
+        return when (g) {
+            SpriteBroadcast.Gesture.SWIPE_FORWARD -> {
+                if (activeWindow == null) focusWindow(nextWindow(+1)) else operateActive(+1)
+                true
+            }
+            SpriteBroadcast.Gesture.SWIPE_BACK -> {
+                if (activeWindow == null) focusWindow(nextWindow(-1)) else operateActive(-1)
+                true
+            }
+            SpriteBroadcast.Gesture.TAP -> {
+                if (activeWindow == null) enterFocusedWindow() else view?.findFocus()?.performClick()
+                true
+            }
+            SpriteBroadcast.Gesture.BACK -> {
+                if (activeWindow != null) {
+                    exitActiveWindow()
+                    true
+                } else {
+                    false
+                }
+            }
+            else -> false
+        }
+    }
+
+    private fun nextWindow(delta: Int): WindowSlot {
+        val order = listOf(WindowSlot.BACK, WindowSlot.MESSAGES, WindowSlot.REPLY)
+        val idx = order.indexOf(focusedWindow).coerceAtLeast(0)
+        val next = (idx + delta).coerceIn(0, order.lastIndex)
+        return order[next]
+    }
+
+    private fun focusWindow(slot: WindowSlot) {
+        focusedWindow = slot
+        activeWindow = null
+        view?.findViewById<RecyclerView>(R.id.messages)?.apply {
+            isFocusable = false
+            isFocusableInTouchMode = false
+        }
+        when (slot) {
+            WindowSlot.BACK -> view?.findViewById<ImageView>(R.id.header_back)?.requestFocus()
+            WindowSlot.MESSAGES -> messageWindow?.requestFocus()
+            WindowSlot.REPLY -> replyWindow?.requestFocus()
+        }
+        modeHint?.text = when (slot) {
+            WindowSlot.BACK -> "焦點模式：Enter 返回列表 · ↓ 到消息窗口"
+            WindowSlot.MESSAGES -> "焦點模式：Enter 進入消息窗口 · ↑↓換窗口"
+            WindowSlot.REPLY -> "焦點模式：Enter 進入回覆窗口 · ↑ 到消息窗口"
+        }
+    }
+
+    private fun enterFocusedWindow() {
+        when (focusedWindow) {
+            WindowSlot.BACK -> requireActivity().onBackPressedDispatcher.onBackPressed()
+            WindowSlot.MESSAGES -> {
+                activeWindow = WindowSlot.MESSAGES
+                val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+                list.isFocusable = true
+                list.isFocusableInTouchMode = true
+                (list.findFocus() ?: list.getChildAt(0) ?: list).requestFocus()
+                modeHint?.text = "消息窗口內：↑↓讀/滾動 · Enter 開啟媒體 · Back 退出窗口"
+            }
+            WindowSlot.REPLY -> {
+                activeWindow = WindowSlot.REPLY
+                val replyButton = view?.findViewById<View>(R.id.btn_reply)
+                replyButton?.requestFocus() ?: replyWindow?.requestFocus()
+                modeHint?.text = "回覆窗口內：↑↓選功能 · Enter 執行 · Back 退出/取消"
+            }
+        }
+    }
+
+    private fun exitActiveWindow() {
+        if (activeWindow == WindowSlot.REPLY) replyPanel?.onBack()
+        val slot = activeWindow ?: focusedWindow
+        activeWindow = null
+        focusWindow(slot)
+    }
+
+    private fun operateActive(delta: Int) {
+        when (activeWindow) {
+            WindowSlot.MESSAGES -> if (delta < 0) pageUp() else pageDown()
+            WindowSlot.REPLY -> moveFocusInsideReply(delta)
+            else -> Unit
+        }
+    }
+
+    private fun pageDown() {
+        val list = view?.findViewById<RecyclerView>(R.id.messages)
+        val cur = view?.findFocus()
+        val next = cur?.focusSearch(View.FOCUS_DOWN)
+        val staysInList = next != null && list != null && isDescendantOf(next, list)
+        if (cur != null && next != null && next !== cur && staysInList) {
+            next.requestFocus()
+        } else {
+            list?.smoothScrollBy(0, 96)
+        }
+    }
+
+    private fun moveFocusInsideReply(delta: Int) {
+        val dir = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
+        val cur = view?.findFocus()
+        val next = cur?.focusSearch(dir)
+        val replyRoot = replyWindow
+        if (next != null && replyRoot != null && isDescendantOf(next, replyRoot)) {
+            next.requestFocus()
         }
     }
 

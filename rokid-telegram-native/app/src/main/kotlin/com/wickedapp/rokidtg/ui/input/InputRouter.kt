@@ -50,7 +50,10 @@ class InputRouter(
     fun dispatchKey(event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) return false
         return when (event.keyCode) {
-            KeyEvent.KEYCODE_ENTER -> sink.onGesture(SpriteBroadcast.Gesture.TAP)
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_DPAD_CENTER -> sink.onGesture(SpriteBroadcast.Gesture.TAP)
+            KeyEvent.KEYCODE_DPAD_DOWN -> sink.onGesture(SpriteBroadcast.Gesture.SWIPE_FORWARD)
+            KeyEvent.KEYCODE_DPAD_UP -> sink.onGesture(SpriteBroadcast.Gesture.SWIPE_BACK)
             KeyEvent.KEYCODE_BACK  -> sink.onGesture(SpriteBroadcast.Gesture.BACK)
             else -> false
         }

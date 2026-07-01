@@ -18,9 +18,10 @@
             layout="@layout/view_header" />
 
         <TextView
+            android:id="@+id/mode_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="消息窗口：↑↓讀訊息 · Enter 選媒體 · Back 返回列表"
+            android:text="焦點模式：↑↓換窗口 · Enter 進入窗口 · Back 返回列表"
             android:textColor="@color/primary_50"
             android:textSize="@dimen/text_l5"
             android:lineHeight="@dimen/line_l5"
@@ -34,8 +35,13 @@
         android:visibility="gone" />
 
     <FrameLayout
+        android:id="@+id/message_window"
         android:layout_width="match_parent"
         android:layout_height="360px"
+        android:background="@drawable/bg_card_row_state"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clickable="true"
         android:paddingStart="10px"
         android:paddingEnd="10px"
         android:paddingTop="4px"
@@ -47,16 +53,21 @@
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:scrollbars="none"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
             android:descendantFocusability="afterDescendants" />
     </FrameLayout>
 
     <LinearLayout
+        android:id="@+id/reply_window"
         android:layout_width="match_parent"
         android:layout_height="160px"
         android:orientation="vertical"
         android:gravity="top"
+        android:background="@drawable/bg_card_row_state"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clickable="true"
         android:paddingStart="12px"
         android:paddingEnd="12px"
         android:paddingTop="6px">
