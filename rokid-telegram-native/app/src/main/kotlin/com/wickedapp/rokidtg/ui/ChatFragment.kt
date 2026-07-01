@@ -153,6 +153,15 @@ class ChatFragment : Fragment() {
         )
     }
 
+    fun showVoiceTranscriptFromHandoff(text: String): Boolean {
+        val panel = replyPanel ?: return false
+        focusWindow(WindowSlot.REPLY)
+        activeWindow = WindowSlot.REPLY
+        replyWindow?.requestFocus()
+        panel.showFinalTranscript(text)
+        return true
+    }
+
     override fun onDestroyView() {
         // Signal TDLib the chat is no longer on-screen so it can throttle updates.
         td?.send(TdApi.CloseChat(chatId)) {}
@@ -283,7 +292,7 @@ class ChatFragment : Fragment() {
                 val focused = view?.findFocus()
                 val replyRoot = replyWindow
                 if (focused != null && replyRoot != null && isDescendantOf(focused, replyRoot) && focused !== replyRoot) {
-                    focused.performClick()
+                    if (replyPanel?.activateFocusedAction(focused.id) != true) focused.performClick()
                 } else if (activeWindow == null) {
                     enterFocusedWindow()
                 } else {

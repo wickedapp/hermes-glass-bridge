@@ -53,6 +53,7 @@ class VoiceHelperBridge(port: Int = 0) {
     private val listener = AtomicReference<Listener?>(null)
     @Volatile private var readyTimer: ScheduledFuture<*>? = null
     @Volatile private var transcriptTimer: ScheduledFuture<*>? = null
+    @Volatile private var lastInterim: String = ""
 
     @Volatile private var server: WebSocketServer? = null
     @Volatile private var serverStarted = false
@@ -72,6 +73,7 @@ class VoiceHelperBridge(port: Int = 0) {
      */
     fun start(l: Listener) {
         sessionNonce = UUID.randomUUID().toString()
+        lastInterim = ""
         listener.set(l)
         ensureServerRunning()
         readyTimer = timers.schedule({
@@ -115,10 +117,24 @@ class VoiceHelperBridge(port: Int = 0) {
     private fun ensureServerRunning() {
         if (serverStarted) return
         val srv = object : WebSocketServer(InetSocketAddress("0.0.0.0", resolvedPort)) {
-            override fun onOpen(c: WebSocket, h: ClientHandshake?) { Timber.tag("Bridge").i("onOpen %s", c.remoteSocketAddress) }
-            override fun onClose(c: WebSocket?, code: Int, r: String?, remote: Boolean) { Timber.tag("Bridge").i("onClose code=%d reason=%s", code, r ?: "") }
+            override fun onOpen(c: WebSocket, h: ClientHandshake?) {
+                Timber.tag("Bridge").i("onOpen %s", c.remoteSocketAddress)
+                // Rokid Sprite's WebSocket reaches this callback reliably, but on this ROM
+                // its first JS send({type:'ready'}) can be lost while the Ink page is still
+                // mounting. Treat the socket open itself as the readiness handshake so the
+                // user never gets the false "語音助手未就緒" banner after the helper is visibly
+                // listening. The explicit ready frame is still accepted below when it arrives.
+                readyTimer?.cancel(false)
+                transcriptTimer?.cancel(false)
+                armTranscriptTimer()
+            }
+            override fun onClose(c: WebSocket?, code: Int, r: String?, remote: Boolean) {
+                Timber.tag("Bridge").i("onClose code=%d reason=%s", code, r ?: "")
+                promoteLastInterimIfAny("close")
+            }
 
             override fun onMessage(c: WebSocket, msg: String) {
+                Timber.tag("Bridge").i("onMessage %s", msg.take(160))
                 val l = listener.get() ?: return
                 val o = runCatching { JSONObject(msg) }.getOrNull() ?: return
                 when (o.optString("type")) {
@@ -131,12 +147,21 @@ class VoiceHelperBridge(port: Int = 0) {
                             return
                         }
                         readyTimer?.cancel(false)
+                        transcriptTimer?.cancel(false)
                         armTranscriptTimer()
                     }
-                    "interim"  -> l.onInterim(o.optString("text"))
+                    "interim"  -> {
+                        val text = o.optString("text")
+                        if (text.isNotBlank()) lastInterim = text
+                        l.onInterim(text)
+                        transcriptTimer?.cancel(false)
+                        armTranscriptTimer(2_500)
+                    }
                     "final"    -> {
                         transcriptTimer?.cancel(false)
-                        l.onFinal(o.optString("text"))
+                        val text = o.optString("text").ifBlank { lastInterim }
+                        l.onFinal(text)
+                        lastInterim = ""
                         stopServer()
                     }
                     "error"    -> l.onError(o.optString("code"), o.optString("msg"))
@@ -164,10 +189,23 @@ class VoiceHelperBridge(port: Int = 0) {
         timers.execute { runCatching { srv.stop(500) } }
     }
 
-    private fun armTranscriptTimer() {
+    private fun armTranscriptTimer(delayMs: Long = 30_000) {
         transcriptTimer = timers.schedule({
-            listener.get()?.onTimeout("transcript")
+            if (!promoteLastInterimIfAny("quiet")) {
+                listener.get()?.onTimeout("transcript")
+            }
             stopServer()
-        }, 30_000, TimeUnit.MILLISECONDS)
+        }, delayMs, TimeUnit.MILLISECONDS)
+    }
+
+    private fun promoteLastInterimIfAny(reason: String): Boolean {
+        val text = lastInterim
+        if (text.isBlank()) return false
+        Timber.tag("Bridge").w("promoting last interim to final after helper %s: %s", reason, text.take(80))
+        transcriptTimer?.cancel(false)
+        lastInterim = ""
+        listener.get()?.onFinal(text)
+        stopServer()
+        return true
     }
 }

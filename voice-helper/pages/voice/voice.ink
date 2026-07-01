@@ -74,6 +74,8 @@ export default {
         this.setData({ status: '● listening', bridge: 'Rokid 內建語音識別' });
         console.log('[tg-voice] ws open ' + url);
         sendFrame({ type: 'ready', nonce: '' });
+        setTimeout(() => sendFrame({ type: 'ready', nonce: '' }), 150);
+        setTimeout(() => sendFrame({ type: 'ready', nonce: '' }), 600);
         this.startAsr();
       };
       ws.onerror = () => {

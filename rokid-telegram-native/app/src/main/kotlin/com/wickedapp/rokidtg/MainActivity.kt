@@ -155,6 +155,7 @@ class MainActivity : AppCompatActivity(), GestureSink {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleDeepLink(intent)
+        binding.root.post { consumePendingVoiceHandoff() }
     }
 
     private fun handleDeepLink(intent: Intent?) {
@@ -167,8 +168,25 @@ class MainActivity : AppCompatActivity(), GestureSink {
         svc?.getNotifications()?.currentOpenChatId = chatId
     }
 
-    override fun onResume() { super.onResume(); router.install() }
+    override fun onResume() {
+        super.onResume()
+        router.install()
+        binding.root.post { consumePendingVoiceHandoff() }
+    }
     override fun onPause()  { router.uninstall(); super.onPause() }
+
+    private fun consumePendingVoiceHandoff() {
+        val prefs = getSharedPreferences("voice_helper", Context.MODE_PRIVATE)
+        val text = prefs.getString("pending_transcript", null)?.takeIf { it.isNotBlank() } ?: return
+        val targetChatId = prefs.getLong("pending_chat_id", -1L)
+        val current = supportFragmentManager.findFragmentById(binding.container.id)
+        if (current is ChatFragment && (targetChatId == -1L || current.chatId == targetChatId)) {
+            if (current.showVoiceTranscriptFromHandoff(text)) {
+                Timber.tag("Voice").i("consumed pending transcript handoff: %s", text.take(80))
+                prefs.edit().remove("pending_transcript").remove("pending_chat_id").apply()
+            }
+        }
+    }
 
     override fun onDestroy() {
         voiceBridge?.close()

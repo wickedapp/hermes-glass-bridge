@@ -8,4 +8,6 @@ cd "$ROOT/voice-helper"
 zip -qr "$OUT" app.json pages
 export PATH="$HOME/Library/Android/sdk/platform-tools:$PATH"
 adb -s "$SERIAL" push "$OUT" /sdcard/Download/tg-voice-helper-v05.aix
-adb -s "$SERIAL" shell ls -l /sdcard/Download/tg-voice-helper-v05.aix
+adb -s "$SERIAL" push "$OUT" /sdcard/Download/tg-voice-helper-v05a.aix
+adb -s "$SERIAL" push "$OUT" /sdcard/Download/tg-voice-helper-v05b.aix
+adb -s "$SERIAL" shell ls -l /sdcard/Download/tg-voice-helper-v05*.aix
