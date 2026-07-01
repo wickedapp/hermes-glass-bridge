@@ -1,0 +1,33 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <ImageView
+        android:id="@+id/image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/viewer_back"
+        android:layout_width="32px"
+        android:layout_height="32px"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="@dimen/safe_top"
+        android:layout_marginStart="12px"
+        android:padding="6px"
+        android:src="@drawable/ic_back"
+        android:focusable="true"
+        android:clickable="true"
+        android:background="@drawable/bg_card_stroke_80"
+        android:contentDescription="Back" />
+
+</FrameLayout>

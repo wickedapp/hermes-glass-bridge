@@ -1,4 +1,12 @@
-# Rokid Telegram Phone Companion
+# [SUPERSEDED] Rokid Telegram Phone Companion
+
+> **STATUS — SUPERSEDED 2026-06-30.** The "phone-side WebView companion" direction this prototype embodies was rejected in the fresh brainstorming session that produced the current product. The final architecture is a **bare-metal native Android APK on the glasses** at `../rokid-telegram-native/`, paired with a Sprite Ink voice helper at `../voice-helper/`, with the phone providing internet via standard Bluetooth tethering — no custom phone-side runtime needed.
+>
+> Authoritative docs:
+> - Design spec: `../docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md` (see decisions D1, D2, D5)
+> - PR: https://github.com/wickedapp/hermes-glass-bridge/pull/1
+>
+> Kept here for reference only. Do not extend.
 
 Phone-side Telegram companion app for Rokid glasses.
 

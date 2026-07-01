@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/bg" android:fillViewport="true">
+    <LinearLayout android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="@dimen/safe_top" android:paddingBottom="@dimen/safe_bottom">
+        <TextView android:text="L1 32px" android:textSize="@dimen/text_l1"
+            android:lineHeight="@dimen/line_l1" android:textColor="@color/primary"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <TextView android:text="L2 24px" android:textSize="@dimen/text_l2"
+            android:lineHeight="@dimen/line_l2" android:textColor="@color/primary"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <TextView android:text="L3 20px 你好世界" android:textSize="@dimen/text_l3"
+            android:lineHeight="@dimen/line_l3" android:textColor="@color/primary"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <TextView android:text="L4 18px secondary" android:textSize="@dimen/text_l4"
+            android:lineHeight="@dimen/line_l4" android:textColor="@color/primary_50"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <TextView android:text="L5 16px caption" android:textSize="@dimen/text_l5"
+            android:lineHeight="@dimen/line_l5" android:textColor="@color/primary_50"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <View android:layout_width="match_parent" android:layout_height="@dimen/row_min_height"
+            android:background="@drawable/bg_card_stroke_40" android:layout_marginTop="20px" />
+        <View android:layout_width="match_parent" android:layout_height="@dimen/row_min_height"
+            android:background="@drawable/bg_card_stroke_80" android:layout_marginTop="20px" />
+        <View android:layout_width="match_parent" android:layout_height="@dimen/row_min_height"
+            android:background="@drawable/bg_card_stroke_100" android:layout_marginTop="20px" />
+        <ImageView android:layout_width="@dimen/icon_reg" android:layout_height="@dimen/icon_reg"
+            android:src="@drawable/ic_send" android:layout_marginTop="20px" />
+    </LinearLayout>
+</ScrollView>

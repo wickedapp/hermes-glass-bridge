@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.RokidTg" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:fontFamily">@font/harmonyos_sans_sc</item>
+        <item name="android:textColor">@color/primary</item>
+    </style>
+</resources>

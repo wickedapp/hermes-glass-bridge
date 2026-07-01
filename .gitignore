@@ -28,3 +28,9 @@ logs/
 # Hermes local runtime
 .hermes/tmp/
 .hermes/logs/
+
+# Agent tooling scratch
+.omc/
+.openchrome/
+.playwright-mcp/
+.superpowers/

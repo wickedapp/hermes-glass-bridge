@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Rokid TG</string>
+    <string name="placeholder_scaffold">Rokid TG — scaffolding</string>
+
+    <!-- Reply state machine (bottom panel) -->
+    <string name="btn_reply">回复</string>
+    <string name="btn_voice">语音</string>
+    <string name="btn_text">文字</string>
+    <string name="btn_bt">键盘</string>
+    <string name="btn_send">发送</string>
+    <string name="btn_cancel">取消</string>
+    <string name="voice_recording_zero">● 0:00</string>
+    <string name="composer_listening">正在听…</string>
+    <string name="composer_input_hint">键入消息…</string>
+
+    <!-- a11y -->
+    <string name="composer_mic_desc">麦克风</string>
+    <string name="composer_send_desc">发送</string>
+</resources>
