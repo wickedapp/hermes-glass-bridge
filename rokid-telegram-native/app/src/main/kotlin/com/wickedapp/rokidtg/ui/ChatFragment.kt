@@ -294,17 +294,21 @@ class ChatFragment : Fragment() {
     fun onWindowGesture(g: SpriteBroadcast.Gesture): Boolean {
         return when (g) {
             SpriteBroadcast.Gesture.SWIPE_FORWARD -> {
+                syncActiveReplyFromFocus()
                 if (activeWindow == null) moveFlatFocus(+1) else operateActive(+1)
                 true
             }
             SpriteBroadcast.Gesture.SWIPE_BACK -> {
+                syncActiveReplyFromFocus()
                 if (activeWindow == null) moveFlatFocus(-1) else operateActive(-1)
                 true
             }
             SpriteBroadcast.Gesture.TAP -> {
                 val focused = view?.findFocus()
                 val replyRoot = replyWindow
-                if (focused != null && replyRoot != null && isDescendantOf(focused, replyRoot) && focused !== replyRoot) {
+                if (focused?.id == R.id.btn_reply && focusedWindow == WindowSlot.REPLY && activeWindow == null) {
+                    enterFocusedWindow()
+                } else if (focused != null && replyRoot != null && isDescendantOf(focused, replyRoot) && focused !== replyRoot) {
                     if (replyPanel?.activateFocusedAction(focused.id) != true) focused.performClick()
                 } else if (focusedWindow == WindowSlot.HEADER && activeWindow == null) {
                     performHeaderAction()
@@ -324,6 +328,16 @@ class ChatFragment : Fragment() {
                 }
             }
             else -> false
+        }
+    }
+
+    private fun syncActiveReplyFromFocus() {
+        val focused = view?.findFocus() ?: return
+        val replyRoot = replyWindow ?: return
+        val panel = replyPanel ?: return
+        if (activeWindow == null && panel.currentState() != ReplyPanel.State.DEFAULT && isDescendantOf(focused, replyRoot)) {
+            focusedWindow = WindowSlot.REPLY
+            activeWindow = WindowSlot.REPLY
         }
     }
 
@@ -371,7 +385,7 @@ class ChatFragment : Fragment() {
             }
             WindowSlot.REPLY -> {
                 setHeaderControlsFocusable(true)
-                replyPanel?.focusDefaultButton()
+                replyPanel?.focusCurrentState()
             }
         }
         modeHint?.text = when (slot) {
@@ -520,6 +534,10 @@ class ChatFragment : Fragment() {
         val from = if (current != RecyclerView.NO_POSITION) current else fallback
         val target = (from + delta).coerceIn(0, count - 1)
         focusMessageAt(target)
+        // Keep the list visibly moving in active message mode. Focus moves between
+        // selectable bubbles, while this small scroll prevents the viewport from
+        // feeling stuck when the focused item is already partly visible.
+        list.smoothScrollBy(0, delta * 96)
     }
 
     private fun focusedMessageAdapterPosition(list: RecyclerView): Int {
@@ -549,7 +567,9 @@ class ChatFragment : Fragment() {
         fun requestVisible() {
             val holder = list.findViewHolderForAdapterPosition(target)
             val item = holder?.itemView ?: return
-            findFocusableMessageChild(item)?.requestFocus() ?: item.requestFocus()
+            val targetView = findFocusableMessageChild(item) ?: item
+            targetView.isFocusableInTouchMode = true
+            targetView.requestFocusFromTouch()
         }
         requestVisible()
         if (view?.findFocus()?.let { isDescendantOf(it, list) } == true) return
@@ -573,12 +593,14 @@ class ChatFragment : Fragment() {
     }
 
     private fun moveFocusInsideReply(delta: Int) {
+        if (replyPanel?.moveFocus(delta) == true) return
         val dir = if (delta > 0) View.FOCUS_DOWN else View.FOCUS_UP
         val cur = view?.findFocus()
         val replyRoot = replyWindow
         val next = cur?.focusSearch(dir)
         if (next != null && replyRoot != null && isDescendantOf(next, replyRoot)) {
-            next.requestFocus()
+            next.isFocusableInTouchMode = true
+            next.requestFocusFromTouch()
         }
     }
 

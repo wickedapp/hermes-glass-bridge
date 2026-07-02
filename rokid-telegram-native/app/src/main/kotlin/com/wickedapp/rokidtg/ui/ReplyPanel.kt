@@ -129,9 +129,9 @@ class ReplyPanel(
 
     fun currentState(): State = state
 
-    /** Focus only the visible default Reply button; never focus the whole bottom reply section. */
-    fun focusDefaultButton() {
-        if (state != State.DEFAULT) go(State.DEFAULT) else btnReply.requestFocus()
+    /** Focus the currently visible reply control; never focus the whole bottom reply section. */
+    fun focusCurrentState() {
+        focusForState(state)
     }
 
     /** Open reply actions directly. Used when the bottom Reply button is activated from window focus. */
@@ -146,6 +146,22 @@ class ReplyPanel(
         R.id.btn_text_send -> { Timber.tag("ReplyPanel").i("activate Send transcript"); sendTextTranscript(); true }
         R.id.btn_text_cancel -> { Timber.tag("ReplyPanel").i("activate Redo/Cancel transcript"); cancelText(); true }
         else -> false
+    }
+
+    fun moveFocus(delta: Int): Boolean {
+        val order = when (state) {
+            State.DEFAULT -> listOf(btnReply)
+            State.MENU -> listOf(btnVoice, btnText, btnBt)
+            State.VOICE -> listOf(btnVoiceSend, btnVoiceCancel)
+            State.TEXT -> listOf(btnTextSend, btnTextCancel)
+            State.BT -> listOf(btInput, btnBtSend)
+        }
+        val focused = root.findFocus()
+        val idx = order.indexOfFirst { it === focused }.takeIf { it >= 0 } ?: 0
+        val next = order[(idx + delta).coerceIn(0, order.lastIndex)]
+        next.isFocusableInTouchMode = true
+        next.requestFocusFromTouch()
+        return true
     }
 
     fun showFinalTranscript(text: String) {
@@ -188,13 +204,20 @@ class ReplyPanel(
         stateBt.visibility      = if (next == State.BT)      View.VISIBLE else View.GONE
 
         // Give focus to a sensible default for the new state so DPAD navigation works.
-        when (next) {
-            State.DEFAULT -> btnReply.requestFocus()
-            State.MENU    -> btnVoice.requestFocus()
-            State.VOICE   -> btnVoiceSend.requestFocus()
-            State.TEXT    -> btnTextSend.requestFocus()
-            State.BT      -> btInput.requestFocus()
+        focusForState(next)
+    }
+
+    private fun focusForState(target: State) {
+        val focusTarget = when (target) {
+            State.DEFAULT -> btnReply
+            State.MENU    -> btnVoice
+            State.VOICE   -> btnVoiceSend
+            State.TEXT    -> btnTextSend
+            State.BT      -> btInput
         }
+        focusTarget.isFocusableInTouchMode = true
+        focusTarget.requestFocusFromTouch()
+        focusTarget.post { focusTarget.requestFocusFromTouch() }
     }
 
     // ------------------------------------------------------------------
