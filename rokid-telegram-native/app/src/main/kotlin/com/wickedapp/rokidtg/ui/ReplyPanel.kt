@@ -129,6 +129,11 @@ class ReplyPanel(
 
     fun currentState(): State = state
 
+    /** Focus only the visible default Reply button; never focus the whole bottom reply section. */
+    fun focusDefaultButton() {
+        if (state != State.DEFAULT) go(State.DEFAULT) else btnReply.requestFocus()
+    }
+
     /** Open reply actions directly. Used when the bottom Reply button is activated from window focus. */
     fun openMenu() {
         go(State.MENU)

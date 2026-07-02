@@ -371,7 +371,7 @@ class ChatFragment : Fragment() {
             }
             WindowSlot.REPLY -> {
                 setHeaderControlsFocusable(true)
-                replyWindow?.requestFocus()
+                replyPanel?.focusDefaultButton()
             }
         }
         modeHint?.text = when (slot) {
@@ -387,15 +387,14 @@ class ChatFragment : Fragment() {
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
                 val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
-                // Active scrolling mode must be a hard focus trap: gestures/DPAD now
-                // scroll messages only. Header icons are disabled as focus targets so
-                // Android focusSearch cannot jump to Pin/Mute even if a raw key slips
-                // past the router.
+                // Active scrolling mode is a message-item focus trap: header controls are
+                // disabled, but message cards stay focusable so Enter can open media /
+                // play voice notes.
                 setHeaderControlsFocusable(false)
-                list.isFocusable = false
-                list.isFocusableInTouchMode = false
-                list.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                messageWindow?.requestFocus()
+                list.isFocusable = true
+                list.isFocusableInTouchMode = true
+                list.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                focusMessageAt(lastVisibleMessagePosition(list))
                 modeHint?.text = getString(R.string.chat_hint_messages_active)
             }
             WindowSlot.REPLY -> {
@@ -474,7 +473,7 @@ class ChatFragment : Fragment() {
     private fun operateActive(delta: Int) {
         when (activeWindow) {
             WindowSlot.HEADER -> moveFocusInsideHeader(delta)
-            WindowSlot.MESSAGES -> if (delta < 0) pageUp() else pageDown()
+            WindowSlot.MESSAGES -> moveFocusInsideMessages(delta)
             WindowSlot.REPLY -> moveFocusInsideReply(delta)
             else -> Unit
         }
@@ -510,6 +509,62 @@ class ChatFragment : Fragment() {
             HeaderAction.PIN -> pinButton?.requestFocus()
             HeaderAction.MUTE -> muteButton?.requestFocus()
         }
+    }
+
+    private fun moveFocusInsideMessages(delta: Int) {
+        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+        val count = adapter.itemCount
+        if (count <= 0) return
+        val current = focusedMessageAdapterPosition(list)
+        val fallback = if (delta < 0) lastVisibleMessagePosition(list) else firstVisibleMessagePosition(list)
+        val from = if (current != RecyclerView.NO_POSITION) current else fallback
+        val target = (from + delta).coerceIn(0, count - 1)
+        focusMessageAt(target)
+    }
+
+    private fun focusedMessageAdapterPosition(list: RecyclerView): Int {
+        val focused = view?.findFocus() ?: return RecyclerView.NO_POSITION
+        if (!isDescendantOf(focused, list)) return RecyclerView.NO_POSITION
+        val item = generateSequence(focused as View?) { it.parent as? View }
+            .firstOrNull { it.parent === list }
+            ?: return RecyclerView.NO_POSITION
+        return list.getChildAdapterPosition(item)
+    }
+
+    private fun firstVisibleMessagePosition(list: RecyclerView): Int {
+        val lm = list.layoutManager as? LinearLayoutManager ?: return 0
+        return lm.findFirstVisibleItemPosition().takeIf { it != RecyclerView.NO_POSITION } ?: 0
+    }
+
+    private fun lastVisibleMessagePosition(list: RecyclerView): Int {
+        val lm = list.layoutManager as? LinearLayoutManager ?: return (adapter.itemCount - 1).coerceAtLeast(0)
+        return lm.findLastVisibleItemPosition()
+            .takeIf { it != RecyclerView.NO_POSITION }
+            ?: (adapter.itemCount - 1).coerceAtLeast(0)
+    }
+
+    private fun focusMessageAt(position: Int) {
+        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+        val target = position.coerceIn(0, (adapter.itemCount - 1).coerceAtLeast(0))
+        fun requestVisible() {
+            val holder = list.findViewHolderForAdapterPosition(target)
+            val item = holder?.itemView ?: return
+            findFocusableMessageChild(item)?.requestFocus() ?: item.requestFocus()
+        }
+        requestVisible()
+        if (view?.findFocus()?.let { isDescendantOf(it, list) } == true) return
+        list.smoothScrollToPosition(target)
+        list.postDelayed({ requestVisible() }, 180)
+    }
+
+    private fun findFocusableMessageChild(root: View): View? {
+        if (root.isFocusable) return root
+        if (root is ViewGroup) {
+            for (i in 0 until root.childCount) {
+                findFocusableMessageChild(root.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 
     private fun pageDown() {
