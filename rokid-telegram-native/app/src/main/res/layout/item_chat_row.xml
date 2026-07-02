@@ -6,12 +6,12 @@
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:background="@drawable/bg_card_row_state"
-    android:paddingStart="10px"
-    android:paddingEnd="10px"
-    android:layout_marginBottom="10px">
+    android:paddingStart="8px"
+    android:paddingEnd="8px"
+    android:layout_marginBottom="6px">
 
     <TextView
-        android:layout_width="28px"
+        android:layout_width="22px"
         android:layout_height="match_parent"
         android:gravity="center"
         android:text="▶"

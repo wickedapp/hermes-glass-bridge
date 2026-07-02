@@ -12,7 +12,7 @@
         <TextView
             android:id="@+id/btn_reply"
             android:layout_width="match_parent"
-            android:layout_height="72px"
+            android:layout_height="58px"
             android:gravity="center"
             android:text="@string/btn_reply"
             android:textSize="@dimen/text_l3"
@@ -30,9 +30,9 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
-        <TextView android:id="@+id/btn_voice" android:layout_width="match_parent" android:layout_height="38px" android:layout_marginBottom="5px" android:gravity="center" android:text="@string/btn_voice" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
-        <TextView android:id="@+id/btn_text" android:layout_width="match_parent" android:layout_height="38px" android:layout_marginBottom="5px" android:gravity="center" android:text="@string/btn_text" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
-        <TextView android:id="@+id/btn_bt" android:layout_width="match_parent" android:layout_height="38px" android:gravity="center" android:text="@string/btn_bt" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
+        <TextView android:id="@+id/btn_voice" android:layout_width="match_parent" android:layout_height="34px" android:layout_marginBottom="5px" android:gravity="center" android:text="@string/btn_voice" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
+        <TextView android:id="@+id/btn_text" android:layout_width="match_parent" android:layout_height="34px" android:layout_marginBottom="5px" android:gravity="center" android:text="@string/btn_text" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
+        <TextView android:id="@+id/btn_bt" android:layout_width="match_parent" android:layout_height="34px" android:gravity="center" android:text="@string/btn_bt" android:textSize="@dimen/text_l5" android:textColor="@color/primary" android:background="@drawable/bg_card_row_state" android:focusable="true" android:clickable="true" />
     </LinearLayout>
 
     <LinearLayout

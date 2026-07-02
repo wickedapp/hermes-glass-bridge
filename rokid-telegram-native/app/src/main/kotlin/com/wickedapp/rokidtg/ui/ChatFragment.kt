@@ -361,9 +361,18 @@ class ChatFragment : Fragment() {
             isFocusableInTouchMode = false
         }
         when (slot) {
-            WindowSlot.HEADER -> focusHeaderAction(focusedHeaderAction)
-            WindowSlot.MESSAGES -> messageWindow?.requestFocus()
-            WindowSlot.REPLY -> replyWindow?.requestFocus()
+            WindowSlot.HEADER -> {
+                setHeaderControlsFocusable(true)
+                focusHeaderAction(focusedHeaderAction)
+            }
+            WindowSlot.MESSAGES -> {
+                setHeaderControlsFocusable(true)
+                messageWindow?.requestFocus()
+            }
+            WindowSlot.REPLY -> {
+                setHeaderControlsFocusable(true)
+                replyWindow?.requestFocus()
+            }
         }
         modeHint?.text = when (slot) {
             WindowSlot.HEADER -> getHeaderHint(focusedHeaderAction)
@@ -378,9 +387,15 @@ class ChatFragment : Fragment() {
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
                 val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
-                list.isFocusable = true
-                list.isFocusableInTouchMode = true
-                (list.findFocus() ?: list.getChildAt(0) ?: list).requestFocus()
+                // Active scrolling mode must be a hard focus trap: gestures/DPAD now
+                // scroll messages only. Header icons are disabled as focus targets so
+                // Android focusSearch cannot jump to Pin/Mute even if a raw key slips
+                // past the router.
+                setHeaderControlsFocusable(false)
+                list.isFocusable = false
+                list.isFocusableInTouchMode = false
+                list.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                messageWindow?.requestFocus()
                 modeHint?.text = getString(R.string.chat_hint_messages_active)
             }
             WindowSlot.REPLY -> {
@@ -447,6 +462,10 @@ class ChatFragment : Fragment() {
 
     private fun exitActiveWindow() {
         if (activeWindow == WindowSlot.REPLY) replyPanel?.onBack()
+        if (activeWindow == WindowSlot.MESSAGES) {
+            view?.findViewById<RecyclerView>(R.id.messages)?.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+            setHeaderControlsFocusable(true)
+        }
         val slot = activeWindow ?: focusedWindow
         activeWindow = null
         focusWindow(slot)
@@ -466,6 +485,21 @@ class ChatFragment : Fragment() {
         val idx = order.indexOf(focusedHeaderAction).coerceAtLeast(0)
         val next = (idx + delta).coerceIn(0, order.lastIndex)
         focusHeaderAction(order[next])
+    }
+
+    private fun setHeaderControlsFocusable(enabled: Boolean) {
+        view?.findViewById<ImageView>(R.id.header_back)?.apply {
+            isFocusable = enabled
+            isFocusableInTouchMode = false
+        }
+        pinButton?.apply {
+            isFocusable = enabled
+            isFocusableInTouchMode = false
+        }
+        muteButton?.apply {
+            isFocusable = enabled
+            isFocusableInTouchMode = false
+        }
     }
 
     private fun focusHeaderAction(action: HeaderAction) {

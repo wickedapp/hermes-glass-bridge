@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="120px"
+        android:layout_height="78px"
         android:orientation="vertical"
         android:gravity="bottom"
         android:paddingStart="12px"
@@ -42,8 +42,8 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="400px"
-        android:paddingStart="12px"
+        android:layout_height="562px"
+        android:paddingStart="10px"
         android:paddingEnd="12px"
         android:paddingTop="6px"
         android:paddingBottom="6px">
@@ -60,9 +60,10 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="120px"
+        android:layout_height="0px"
         android:orientation="vertical"
         android:gravity="top"
+        android:visibility="gone"
         android:paddingStart="16px"
         android:paddingEnd="16px"
         android:paddingTop="8px">

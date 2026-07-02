@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="84px"
+        android:layout_height="70px"
         android:orientation="vertical"
         android:gravity="bottom"
         android:paddingStart="12px"
@@ -37,7 +37,7 @@
     <FrameLayout
         android:id="@+id/message_window"
         android:layout_width="match_parent"
-        android:layout_height="400px"
+        android:layout_height="442px"
         android:background="@drawable/bg_card_row_state"
         android:focusable="true"
         android:focusableInTouchMode="true"
@@ -61,7 +61,7 @@
     <FrameLayout
         android:id="@+id/reply_window"
         android:layout_width="match_parent"
-        android:layout_height="156px"
+        android:layout_height="128px"
         android:background="@color/bg"
         android:focusable="true"
         android:focusableInTouchMode="true"
