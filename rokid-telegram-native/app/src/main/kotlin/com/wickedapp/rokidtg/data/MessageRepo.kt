@@ -47,10 +47,11 @@ class MessageRepo(
 
     suspend fun loadInitial(limit: Int = 5): Int {
         var received = load(fromMessageId = 0L, limit = limit)
-        if (received == 0 || synchronized(cache) { cache.size } == 0) {
-            // OpenChat sometimes only primes TDLib; give it a short beat then retry.
+        if (received < limit) {
+            // First GetChatHistory after OpenChat often returns only cached lastMessage.
+            // Retry once after TDLib has had a beat to fetch the actual latest slice.
             delay(250)
-            received = load(fromMessageId = 0L, limit = limit)
+            received += load(fromMessageId = 0L, limit = limit)
         }
         return received
     }
@@ -77,9 +78,13 @@ class MessageRepo(
         }
 
         val msgs = result.messages ?: emptyArray()
-        Timber.tag("MsgRepo").i("GetChatHistory chat=%d from=%d limit=%d -> %d msgs (totalCount=%d)",
-            chatId, fromMessageId, limit, msgs.size, result.totalCount)
-        if (msgs.isEmpty()) return 0
+        if (msgs.isEmpty()) {
+            Timber.tag("MsgRepo").i(
+                "GetChatHistory chat=%d from=%d limit=%d -> 0 msgs inserted=0 totalCount=%d",
+                chatId, fromMessageId, limit, result.totalCount
+            )
+            return 0
+        }
 
         val rows = msgs.map { toRow(it) }
         val inserted = synchronized(cache) {
@@ -91,6 +96,11 @@ class MessageRepo(
             _messages.value = cache.values.toList()
             count
         }
+
+        Timber.tag("MsgRepo").i(
+            "GetChatHistory chat=%d from=%d limit=%d -> %d msgs inserted=%d totalCount=%d",
+            chatId, fromMessageId, limit, msgs.size, inserted, result.totalCount
+        )
 
         // Mark as viewed — non-critical, fire-and-forget
         val ids = msgs.map { it.id }.toLongArray()

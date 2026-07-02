@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.wickedapp.rokidtg.MainActivity
@@ -65,7 +66,9 @@ class ChatFragment : Fragment() {
     private var pinButton: TextView? = null
     private var muteButton: TextView? = null
     private var selectedMessagePosition: Int = RecyclerView.NO_POSITION
-    private var pendingMessagePositionAfterHistoryLoad: Int? = null
+    private var isLoadingOlderMessages = false
+    private var requestedOlderLoad = false
+    private var lastRenderedFirstMessageId: Long? = null
     private var didInitialScrollToNewest = false
 
     /** Single-slot player for incoming voice notes; null until first use. */
@@ -113,20 +116,35 @@ class ChatFragment : Fragment() {
         val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             r.messages.collect { rows ->
-                Timber.tag("ChatFragment").i("chat=%d rows=%d selected=%d title=%s", chatId, rows.size, selectedMessagePosition, chatTitle)
-                adapter.submit(rows)
-                val pending = pendingMessagePositionAfterHistoryLoad
-                if (pending != null) {
-                    pendingMessagePositionAfterHistoryLoad = null
-                    selectedMessagePosition = pending.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
-                    focusMessageAt(selectedMessagePosition)
-                } else if (selectedMessagePosition != RecyclerView.NO_POSITION) {
-                    selectedMessagePosition = selectedMessagePosition.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
-                }
-                if (!didInitialScrollToNewest && rows.isNotEmpty()) {
-                    didInitialScrollToNewest = true
-                    selectedMessagePosition = rows.lastIndex
-                    scrollMessagesToNewest(list)
+                val previousFirst = lastRenderedFirstMessageId
+                val insertedBeforePreviousFirst = previousFirst?.let { firstId ->
+                    rows.indexOfFirst { it.id == firstId }.takeIf { it > 0 } ?: 0
+                } ?: 0
+                Timber.tag("ChatFragment").i(
+                    "chat=%d rows=%d selected=%d title=%s insertedBeforeFirst=%d requestedOlder=%s loadingOlder=%s",
+                    chatId, rows.size, selectedMessagePosition, chatTitle,
+                    insertedBeforePreviousFirst, requestedOlderLoad, isLoadingOlderMessages
+                )
+                adapter.submit(rows) {
+                    if (requestedOlderLoad && insertedBeforePreviousFirst > 0) {
+                        requestedOlderLoad = false
+                        selectedMessagePosition = insertedBeforePreviousFirst - 1
+                        Timber.tag("ChatFragment").i(
+                            "olderLoad rendered insertedBeforePreviousFirst=%d target=%d size=%d",
+                            insertedBeforePreviousFirst, selectedMessagePosition, rows.size
+                        )
+                        list.post { focusMessageAt(selectedMessagePosition, forceScroll = true) }
+                    } else {
+                        if (selectedMessagePosition != RecyclerView.NO_POSITION) {
+                            selectedMessagePosition = selectedMessagePosition.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
+                        }
+                        if (!didInitialScrollToNewest && rows.isNotEmpty()) {
+                            didInitialScrollToNewest = true
+                            selectedMessagePosition = rows.lastIndex
+                            scrollMessagesToNewest(list)
+                        }
+                    }
+                    lastRenderedFirstMessageId = rows.firstOrNull()?.id
                 }
             }
         }
@@ -560,16 +578,20 @@ class ChatFragment : Fragment() {
             selectedMessagePosition = (count - 1).coerceAtLeast(0)
         }
         if (delta < 0 && selectedMessagePosition <= 0) {
+            if (isLoadingOlderMessages) return
+            isLoadingOlderMessages = true
+            requestedOlderLoad = true
+            Timber.tag("ChatFragment").i("olderLoad start selected=%d size=%d", selectedMessagePosition, count)
             viewLifecycleOwner.lifecycleScope.launch {
-                val inserted = repo?.loadOlder(limit = 5) ?: 0
-                if (inserted > 0) {
-                    // Older rows are prepended before the current first row. Select the
-                    // newest of that newly loaded batch so Up still moves exactly one
-                    // message older than the previous top item.
-                    pendingMessagePositionAfterHistoryLoad = inserted - 1
-                } else {
-                    selectedMessagePosition = 0
-                    focusMessageAt(0)
+                try {
+                    val inserted = repo?.loadOlder(limit = 5) ?: 0
+                    if (inserted <= 0) {
+                        requestedOlderLoad = false
+                        selectedMessagePosition = 0
+                        focusMessageAt(0, forceScroll = true)
+                    }
+                } finally {
+                    isLoadingOlderMessages = false
                 }
             }
             return
@@ -600,20 +622,24 @@ class ChatFragment : Fragment() {
             ?: (adapter.itemCount - 1).coerceAtLeast(0)
     }
 
-    private fun focusMessageAt(position: Int) {
+    private fun focusMessageAt(position: Int, forceScroll: Boolean = false) {
         val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
         val target = position.coerceIn(0, (adapter.itemCount - 1).coerceAtLeast(0))
-        fun requestVisible() {
-            val holder = list.findViewHolderForAdapterPosition(target)
-            val item = holder?.itemView ?: return
+        selectedMessagePosition = target
+        fun requestVisible(): Boolean {
+            val holder = list.findViewHolderForAdapterPosition(target) ?: return false
+            val item = holder.itemView
             val targetView = findFocusableMessageChild(item) ?: item
             targetView.isFocusableInTouchMode = true
             targetView.requestFocusFromTouch()
+            return true
         }
-        requestVisible()
-        if (view?.findFocus()?.let { isDescendantOf(it, list) } == true) return
-        list.smoothScrollToPosition(target)
-        list.postDelayed({ requestVisible() }, 180)
+        val visibleNow = requestVisible()
+        if (!visibleNow || forceScroll) {
+            list.smoothScrollToPosition(target)
+            list.postDelayed({ requestVisible() }, 120)
+            list.postDelayed({ requestVisible() }, 260)
+        }
     }
 
     private fun findFocusableMessageChild(root: View): View? {
@@ -695,11 +721,28 @@ class MsgAdapter(
 
     private val rows = mutableListOf<MsgRow>()
 
-    fun submit(list: List<MsgRow>) {
-        rows.clear()
-        rows.addAll(list)
-        notifyDataSetChanged()
+    init {
+        setHasStableIds(true)
     }
+
+    fun submit(list: List<MsgRow>, onCommitted: () -> Unit = {}) {
+        val oldRows = rows.toList()
+        val newRows = list.toList()
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize(): Int = oldRows.size
+            override fun getNewListSize(): Int = newRows.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                oldRows[oldItemPosition].id == newRows[newItemPosition].id
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                oldRows[oldItemPosition] == newRows[newItemPosition]
+        })
+        rows.clear()
+        rows.addAll(newRows)
+        diff.dispatchUpdatesTo(this)
+        onCommitted()
+    }
+
+    override fun getItemId(position: Int): Long = rows[position].id
 
     override fun getItemCount(): Int = rows.size
 
