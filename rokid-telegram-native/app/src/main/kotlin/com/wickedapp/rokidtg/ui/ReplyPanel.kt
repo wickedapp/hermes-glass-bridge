@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.speech.RecognitionListener
@@ -98,10 +99,6 @@ class ReplyPanel(
         btnVoice.setOnClickListener { startVoiceReply() }
         btnText.setOnClickListener  { startTextReply() }
         btnBt.setOnClickListener    { startBtReply() }
-
-        btnVoice.setOnFocusChangeListener { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_voice), BannerHost.Kind.INFO) }
-        btnText.setOnFocusChangeListener  { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_text), BannerHost.Kind.INFO) }
-        btnBt.setOnFocusChangeListener    { _, has -> if (has) BannerHost.show(ctx.getString(R.string.btn_bt), BannerHost.Kind.INFO) }
 
         btnVoiceSend.setOnClickListener   { stopAndSendVoice() }
         btnVoiceCancel.setOnClickListener { cancelVoice() }
@@ -282,13 +279,29 @@ class ReplyPanel(
         textTranscript.text = ctx.getString(R.string.composer_listening)
         textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
         go(State.TEXT)
-        if (SpeechRecognizer.isRecognitionAvailable(ctx)) {
+        val forceSpriteHelper = isRokidDevice()
+        val androidRecognizerAvailable = SpeechRecognizer.isRecognitionAvailable(ctx)
+        Timber.tag("ReplyPanel").i(
+            "dictate route forceSprite=%s androidRecognizer=%s manufacturer=%s model=%s",
+            forceSpriteHelper,
+            androidRecognizerAvailable,
+            Build.MANUFACTURER,
+            Build.MODEL
+        )
+        if (!forceSpriteHelper && androidRecognizerAvailable) {
             startInlineSpeechRecognizer()
         } else {
-            Timber.tag("ReplyPanel").w("Android SpeechRecognizer unavailable; using hidden Sprite helper")
+            Timber.tag("ReplyPanel").w("Using hidden Sprite helper for Dictate")
             startBridge()
             launchHiddenHelper()
         }
+    }
+
+    private fun isRokidDevice(): Boolean {
+        val haystack = listOf(Build.MANUFACTURER, Build.BRAND, Build.MODEL, Build.DEVICE, Build.PRODUCT)
+            .joinToString(" ")
+            .lowercase()
+        return haystack.contains("rokid") || haystack.contains("yoda") || haystack.contains("sprite")
     }
 
     private fun startInlineSpeechRecognizer() {
@@ -312,10 +325,11 @@ class ReplyPanel(
                 }
 
                 override fun onError(error: Int) {
-                    Timber.tag("ReplyPanel").w("inline ASR error=%d", error)
+                    Timber.tag("ReplyPanel").w("inline ASR error=%d; falling back to hidden Sprite helper", error)
                     if (!textActive) return
-                    BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
-                    cancelText()
+                    stopInlineSpeechRecognizer()
+                    startBridge()
+                    launchHiddenHelper()
                 }
 
                 override fun onResults(results: Bundle?) {

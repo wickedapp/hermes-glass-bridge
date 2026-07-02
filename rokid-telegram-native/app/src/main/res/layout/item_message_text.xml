@@ -8,7 +8,7 @@
 
     <LinearLayout
         android:id="@+id/bubble"
-        android:layout_width="292px"
+        android:layout_width="374px"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:minHeight="54px"

@@ -109,7 +109,10 @@ class ChatFragment : Fragment() {
 
         val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
-            r.messages.collect { adapter.submit(it) }
+            r.messages.collect { rows ->
+                adapter.submit(rows)
+                scrollMessagesToNewest(list)
+            }
         }
         // Only load history if cache is empty (service-scoped repo already has it on re-entry)
         if (r.messages.value.isEmpty()) {
@@ -164,6 +167,13 @@ class ChatFragment : Fragment() {
                 }
             }
         )
+    }
+
+    private fun scrollMessagesToNewest(list: RecyclerView) {
+        val last = adapter.itemCount - 1
+        if (last < 0) return
+        list.post { list.scrollToPosition(last) }
+        list.postDelayed({ list.scrollToPosition(last) }, 120)
     }
 
     fun showVoiceTranscriptFromHandoff(text: String): Boolean {

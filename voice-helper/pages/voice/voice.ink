@@ -17,7 +17,7 @@ let finalSent = false;
 // glasses WLAN IP can change after reconnects. Try the recently observed device
 // IPs before falling back to loopback; if all fail, do not continue ASR silently
 // because the native APK would never receive the final transcript or jump back.
-const BRIDGE_HOSTS = ['192.168.68.65', '192.168.68.67', '192.168.68.56', '127.0.0.1', 'localhost'];
+const BRIDGE_HOSTS = ['192.168.68.74', '192.168.68.65', '192.168.68.67', '192.168.68.56', '127.0.0.1', 'localhost'];
 let bridgeHostIndex = 0;
 function bridgeUrl() { return 'ws://' + BRIDGE_HOSTS[bridgeHostIndex] + ':48761'; }
 
