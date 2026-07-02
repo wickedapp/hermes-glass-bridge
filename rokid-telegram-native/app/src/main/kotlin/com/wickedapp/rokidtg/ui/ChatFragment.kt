@@ -284,18 +284,21 @@ class ChatFragment : Fragment() {
     /**
      * Window-focus controller for the conversation page.
      *
-     * Focus mode: Up/Down moves Back ⇄ Message History ⇄ Reply; Enter activates.
-     * Active message mode: Up/Down scroll/select messages; Enter opens focused media.
-     * Active reply mode: Up/Down moves inside reply controls; Enter performs control.
+     * Header controls are intentionally flat: when the top bar is focused,
+     * Up/Down moves Back ⇄ Pin ⇄ Mute ⇄ Messages and Enter activates the
+     * selected icon. This matches the glasses' one-click confirm / double-click
+     * cancel model; Pin/Mute should not require an extra "enter header" step.
+     * Active message mode: Up/Down scrolls messages only.
+     * Active reply mode: Up/Down moves inside reply controls.
      */
     fun onWindowGesture(g: SpriteBroadcast.Gesture): Boolean {
         return when (g) {
             SpriteBroadcast.Gesture.SWIPE_FORWARD -> {
-                if (activeWindow == null) focusWindow(nextWindow(+1)) else operateActive(+1)
+                if (activeWindow == null) moveFlatFocus(+1) else operateActive(+1)
                 true
             }
             SpriteBroadcast.Gesture.SWIPE_BACK -> {
-                if (activeWindow == null) focusWindow(nextWindow(-1)) else operateActive(-1)
+                if (activeWindow == null) moveFlatFocus(-1) else operateActive(-1)
                 true
             }
             SpriteBroadcast.Gesture.TAP -> {
@@ -303,6 +306,8 @@ class ChatFragment : Fragment() {
                 val replyRoot = replyWindow
                 if (focused != null && replyRoot != null && isDescendantOf(focused, replyRoot) && focused !== replyRoot) {
                     if (replyPanel?.activateFocusedAction(focused.id) != true) focused.performClick()
+                } else if (focusedWindow == WindowSlot.HEADER && activeWindow == null) {
+                    performHeaderAction()
                 } else if (activeWindow == null) {
                     enterFocusedWindow()
                 } else {
@@ -322,11 +327,30 @@ class ChatFragment : Fragment() {
         }
     }
 
-    private fun nextWindow(delta: Int): WindowSlot {
-        val order = listOf(WindowSlot.HEADER, WindowSlot.MESSAGES, WindowSlot.REPLY)
-        val idx = order.indexOf(focusedWindow).coerceAtLeast(0)
-        val next = (idx + delta).coerceIn(0, order.lastIndex)
-        return order[next]
+    private fun moveFlatFocus(delta: Int) {
+        when (focusedWindow) {
+            WindowSlot.HEADER -> moveHeaderOrLeave(delta)
+            WindowSlot.MESSAGES -> {
+                if (delta < 0) {
+                    focusedWindow = WindowSlot.HEADER
+                    focusHeaderAction(HeaderAction.MUTE)
+                    updateHeaderHint()
+                } else focusWindow(WindowSlot.REPLY)
+            }
+            WindowSlot.REPLY -> if (delta < 0) focusWindow(WindowSlot.MESSAGES) else focusWindow(WindowSlot.REPLY)
+        }
+    }
+
+    private fun moveHeaderOrLeave(delta: Int) {
+        val order = listOf(HeaderAction.BACK, HeaderAction.PIN, HeaderAction.MUTE)
+        val idx = order.indexOf(focusedHeaderAction).coerceAtLeast(0)
+        val next = idx + delta
+        when {
+            next < 0 -> focusHeaderAction(HeaderAction.BACK)
+            next > order.lastIndex -> focusWindow(WindowSlot.MESSAGES)
+            else -> focusHeaderAction(order[next])
+        }
+        if (focusedWindow == WindowSlot.HEADER) updateHeaderHint()
     }
 
     private fun focusWindow(slot: WindowSlot) {
@@ -342,7 +366,7 @@ class ChatFragment : Fragment() {
             WindowSlot.REPLY -> replyWindow?.requestFocus()
         }
         modeHint?.text = when (slot) {
-            WindowSlot.HEADER -> getString(R.string.chat_hint_header)
+            WindowSlot.HEADER -> getHeaderHint(focusedHeaderAction)
             WindowSlot.MESSAGES -> getString(R.string.chat_hint_messages)
             WindowSlot.REPLY -> getString(R.string.chat_hint_reply)
         }
@@ -350,11 +374,7 @@ class ChatFragment : Fragment() {
 
     private fun enterFocusedWindow() {
         when (focusedWindow) {
-            WindowSlot.HEADER -> {
-                activeWindow = WindowSlot.HEADER
-                focusHeaderAction(focusedHeaderAction)
-                modeHint?.text = getString(R.string.chat_hint_header_active)
-            }
+            WindowSlot.HEADER -> performHeaderAction()
             WindowSlot.MESSAGES -> {
                 activeWindow = WindowSlot.MESSAGES
                 val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
@@ -396,12 +416,33 @@ class ChatFragment : Fragment() {
         val muted = prefs?.isMuted(chatId) == true
         pinButton?.apply {
             text = getString(if (pinned) R.string.action_pin_on else R.string.action_pin)
+            contentDescription = getString(if (pinned) R.string.action_unpin_desc else R.string.action_pin_desc)
             setTextColor(context.getColor(if (pinned) R.color.primary else R.color.primary_50))
         }
         muteButton?.apply {
             text = getString(if (muted) R.string.action_mute_on else R.string.action_mute)
+            contentDescription = getString(if (muted) R.string.action_unmute_desc else R.string.action_mute_desc)
             setTextColor(context.getColor(if (muted) R.color.primary else R.color.primary_50))
         }
+        if (focusedWindow == WindowSlot.HEADER) updateHeaderHint()
+    }
+
+    private fun performHeaderAction() {
+        when (focusedHeaderAction) {
+            HeaderAction.BACK -> requireActivity().onBackPressedDispatcher.onBackPressed()
+            HeaderAction.PIN -> togglePin()
+            HeaderAction.MUTE -> toggleMute()
+        }
+    }
+
+    private fun updateHeaderHint() {
+        modeHint?.text = getHeaderHint(focusedHeaderAction)
+    }
+
+    private fun getHeaderHint(action: HeaderAction): String = when (action) {
+        HeaderAction.BACK -> getString(R.string.chat_hint_header_back)
+        HeaderAction.PIN -> getString(R.string.chat_hint_header_pin)
+        HeaderAction.MUTE -> getString(R.string.chat_hint_header_mute)
     }
 
     private fun exitActiveWindow() {
@@ -428,6 +469,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun focusHeaderAction(action: HeaderAction) {
+        focusedWindow = WindowSlot.HEADER
         focusedHeaderAction = action
         when (action) {
             HeaderAction.BACK -> view?.findViewById<ImageView>(R.id.header_back)?.requestFocus()

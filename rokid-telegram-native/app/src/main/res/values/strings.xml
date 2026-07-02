@@ -8,17 +8,24 @@
     <string name="live_count">LIVE · %1$d</string>
 
     <string name="chat_hint_focus_default">↑↓ switch window · Enter enter · Back return</string>
-    <string name="chat_hint_header">Enter top controls · ↓ to messages</string>
+    <string name="chat_hint_header">Top: ↑↓ choose icon · Enter act · ↓ to messages</string>
+    <string name="chat_hint_header_back">← Back · ↓ Pin · Enter return</string>
+    <string name="chat_hint_header_pin">☆/★ Pin · ↑ Back · ↓ Mute · Enter toggle</string>
+    <string name="chat_hint_header_mute">🔔/🔕 Mute · ↑ Pin · ↓ Messages · Enter toggle</string>
     <string name="chat_hint_messages">Enter messages · ↑↓ switch window</string>
     <string name="chat_hint_reply">Enter reply · ↑ to messages</string>
-    <string name="chat_hint_header_active">Top controls: ↑↓ Back/Pin/Mute · Enter act · Back exit</string>
+    <string name="chat_hint_header_active">Top controls: ↑↓ Back/Pin/Mute · Enter act</string>
     <string name="chat_hint_messages_active">Messages: ↑↓ scroll · Enter open · Back exit</string>
     <string name="chat_hint_reply_active">Reply: ↑↓ choose · Enter act · Back exit</string>
 
-    <string name="action_pin">PIN</string>
-    <string name="action_pin_on">★PIN</string>
-    <string name="action_mute">MUTE</string>
-    <string name="action_mute_on">MUTED</string>
+    <string name="action_pin">☆</string>
+    <string name="action_pin_on">★</string>
+    <string name="action_mute">🔔</string>
+    <string name="action_mute_on">🔕</string>
+    <string name="action_pin_desc">Pin chat</string>
+    <string name="action_unpin_desc">Unpin chat</string>
+    <string name="action_mute_desc">Mute chat</string>
+    <string name="action_unmute_desc">Unmute chat</string>
     <string name="pin_limit_warning">You can pin up to 5 chats</string>
     <string name="pin_enabled">Pinned to top</string>
     <string name="pin_disabled">Unpinned</string>

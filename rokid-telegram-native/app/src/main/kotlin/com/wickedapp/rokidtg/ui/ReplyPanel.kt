@@ -1,22 +1,20 @@
 package com.wickedapp.rokidtg.ui
 
-import android.content.Intent
-import android.os.SystemClock
 import android.app.Activity
 import android.app.ActivityManager
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.os.Build
+import android.content.ComponentName
+import android.content.Intent
+import android.os.Bundle
+import android.os.SystemClock
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.RequiresPermission
-import androidx.core.app.NotificationCompat
-import androidx.core.view.isVisible
-import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.TdClientFacade
 import com.wickedapp.rokidtg.voice.AudioCapturer
@@ -31,7 +29,7 @@ import java.io.File
  *   DEFAULT       → single "回复" button (focusable, sits below message list)
  *   MENU          → 语音 / 文字 / 键盘 (three reply-mode buttons)
  *   VOICE         → live recording timer + 发送 / 取消
- *   TEXT          → live transcript from Sprite voicehelper + 发送 / 取消
+ *   TEXT          → in-page speech recognizer + live transcript + 发送 / 取消
  *   BT            → EditText + 发送 (BT keyboard typing path)
  *
  * Back-press (or 取消) collapses one level: VOICE/TEXT/BT → MENU → DEFAULT.
@@ -89,9 +87,10 @@ class ReplyPanel(
         }
     }
 
-    // Voice-to-text (Sprite helper)
+    // Voice-to-text (in-page Android speech recognizer)
     private var textActive = false
     private var textFinal: String? = null
+    private var speechRecognizer: SpeechRecognizer? = null
 
     init {
         btnReply.setOnClickListener { go(State.MENU) }
@@ -148,7 +147,7 @@ class ReplyPanel(
         textActive = true
         textFinal = text
         go(State.TEXT)
-        textTranscript.text = ctx.getString(R.string.confirm_send_format, text)
+        textTranscript.text = text
         textTranscript.setTextColor(ctx.getColor(R.color.primary))
         btnTextSend.requestFocus()
     }
@@ -245,75 +244,96 @@ class ReplyPanel(
     }
 
     // ------------------------------------------------------------------
-    // TEXT (voice-to-text via Sprite helper)
+    // TEXT (in-page voice-to-text)
     // ------------------------------------------------------------------
 
     private fun startTextReply() {
-        Timber.tag("ReplyPanel").i("startTextReply")
-        val activity = ctx as? MainActivity
-        if (activity?.voiceHelperDisabled == true) {
-            BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
-            return
-        }
+        Timber.tag("ReplyPanel").i("startTextReply inline")
         textActive = true
         textFinal = null
         textTranscript.text = ctx.getString(R.string.composer_listening)
         textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
         go(State.TEXT)
-        startBridge()
-        launchHelper()
-    }
-
-    private fun bringAppToFront() {
-        runCatching {
-            (ctx as? Activity)?.let { activity ->
-                runCatching {
-                    val am = activity.getSystemService(ActivityManager::class.java)
-                    am.moveTaskToFront(activity.taskId, ActivityManager.MOVE_TASK_WITH_HOME)
-                    Timber.tag("ReplyPanel").i("moveTaskToFront task=%d", activity.taskId)
-                }.onFailure { Timber.tag("ReplyPanel").w(it, "moveTaskToFront failed") }
-            }
-            val intent = Intent(ctx, MainActivity::class.java).apply {
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP
-                )
-            }
-            Timber.tag("ReplyPanel").i("startActivity bringAppToFront")
-            ctx.startActivity(intent)
-            postFullScreenReturn(intent)
+        if (SpeechRecognizer.isRecognitionAvailable(ctx)) {
+            startInlineSpeechRecognizer()
+        } else {
+            Timber.tag("ReplyPanel").w("Android SpeechRecognizer unavailable; using hidden Sprite helper")
+            startBridge()
+            launchHiddenHelper()
         }
     }
 
-    private fun postFullScreenReturn(intent: Intent) {
-        runCatching {
-            val nm = ctx.getSystemService(NotificationManager::class.java)
-            val channelId = "voice_return"
-            if (Build.VERSION.SDK_INT >= 26) {
-                nm.createNotificationChannel(
-                    NotificationChannel(channelId, ctx.getString(R.string.voice_return_channel), NotificationManager.IMPORTANCE_HIGH)
-                )
+    private fun startInlineSpeechRecognizer() {
+        stopInlineSpeechRecognizer()
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(ctx).also { recognizer ->
+            recognizer.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    Timber.tag("ReplyPanel").i("inline ASR ready")
+                    textTranscript.text = ctx.getString(R.string.composer_listening)
+                }
+
+                override fun onBeginningOfSpeech() {
+                    Timber.tag("ReplyPanel").i("inline ASR speech begin")
+                }
+
+                override fun onRmsChanged(rmsdB: Float) = Unit
+                override fun onBufferReceived(buffer: ByteArray?) = Unit
+
+                override fun onEndOfSpeech() {
+                    Timber.tag("ReplyPanel").i("inline ASR speech end")
+                }
+
+                override fun onError(error: Int) {
+                    Timber.tag("ReplyPanel").w("inline ASR error=%d", error)
+                    if (!textActive) return
+                    BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
+                    cancelText()
+                }
+
+                override fun onResults(results: Bundle?) {
+                    val text = bestSpeechText(results)
+                    Timber.tag("ReplyPanel").i("inline ASR final length=%d", text.length)
+                    if (text.isBlank()) {
+                        BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
+                        cancelText()
+                    } else {
+                        showFinalTranscript(text)
+                        stopInlineSpeechRecognizer()
+                    }
+                }
+
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val text = bestSpeechText(partialResults)
+                    if (text.isNotBlank()) {
+                        textTranscript.text = text
+                        textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                    }
+                }
+
+                override fun onEvent(eventType: Int, params: Bundle?) = Unit
+            })
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, ctx.packageName)
             }
-            val pi = PendingIntent.getActivity(
-                ctx,
-                48761,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val n = NotificationCompat.Builder(ctx, channelId)
-                .setSmallIcon(R.drawable.ic_mic)
-                .setContentTitle(ctx.getString(R.string.voice_return_title))
-                .setContentText(ctx.getString(R.string.voice_return_text))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setFullScreenIntent(pi, true)
-                .setContentIntent(pi)
-                .setAutoCancel(true)
-                .build()
-            nm.notify(48761, n)
-        }.onFailure { Timber.tag("ReplyPanel").w(it, "full-screen return notification failed") }
+            recognizer.startListening(intent)
+        }
+    }
+
+    private fun bestSpeechText(bundle: Bundle?): String =
+        bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            ?.firstOrNull { it.isNotBlank() }
+            ?.trim()
+            .orEmpty()
+
+    private fun stopInlineSpeechRecognizer() {
+        speechRecognizer?.let { recognizer ->
+            runCatching { recognizer.cancel() }
+            runCatching { recognizer.destroy() }
+        }
+        speechRecognizer = null
     }
 
     private fun startBridge() {
@@ -321,94 +341,98 @@ class ReplyPanel(
         bridge.start(object : VoiceHelperBridge.Listener {
             override fun onInterim(text: String) {
                 root.post {
+                    if (!textActive) return@post
                     textTranscript.text = text
                     textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                    bringNativeTaskToFront()
                 }
             }
+
             override fun onFinal(text: String) {
                 root.post {
-                    ctx.getSharedPreferences("voice_helper", android.content.Context.MODE_PRIVATE)
-                        .edit()
-                        .putLong("pending_chat_id", chatId)
-                        .putString("pending_transcript", text)
-                        .apply()
-                    bringAppToFront()
-                    root.postDelayed({ bringAppToFront() }, 750)
+                    if (!textActive) return@post
+                    bringNativeTaskToFront()
                     showFinalTranscript(text)
                 }
             }
+
             override fun onError(code: String, msg: String) {
                 Timber.tag("Voice").w("bridge error %s: %s", code, msg)
                 root.post {
-                    bringAppToFront()
+                    bringNativeTaskToFront()
                     cancelText()
                 }
             }
+
             override fun onTimeout(stage: String) {
                 Timber.tag("Voice").w("bridge timeout at stage=%s", stage)
                 root.post {
-                    bringAppToFront()
-                    when (stage) {
-                        "ready" -> {
-                            BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
-                            (ctx as? MainActivity)?.voiceHelperDisabled = true
-                        }
-                        "transcript" -> BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
-                    }
+                    bringNativeTaskToFront()
+                    BannerHost.show(
+                        ctx.getString(if (stage == "ready") R.string.voice_helper_not_ready else R.string.voice_not_clear),
+                        BannerHost.Kind.WARN
+                    )
                     cancelText()
                 }
             }
         })
     }
 
-    /**
-     * [VERIFY:launch-intent] The previous startActivity(SpriteMainActivity, appId=…) shape
-     * moves Sprite launcher to the foreground and pushes Rokid TG to the background —
-     * user perceives it as an app shutdown. Switching to a broadcast so we stay
-     * foreground while the Sprite runtime opens the mini-app in the background.
-     * If the broadcast is also silently dropped by the ROM, the bridge will time out at
-     * stage="ready" and the BannerHost fallback ("语音助手未就绪") kicks in.
-     */
-    private fun launchHelper() {
+    private fun launchHiddenHelper() {
         runCatching {
-            Timber.tag("ReplyPanel").i("launchHelper tg-voice-helper-v05")
             val intent = Intent("com.rokid.os.sprite.jsai.OPEN_PAGE").apply {
-                component = android.content.ComponentName(
+                component = ComponentName(
                     "com.rokid.os.sprite.assistserver",
                     "com.rokid.os.sprite.jsai.JsaiService"
                 )
-                // Sprite skips onNewIntent when the same AIX path is already open. Alternate
-                // between two identical pushed helper paths so every Dictate action is a real
-                // page load and can auto-return after ASR.
                 val prefs = ctx.getSharedPreferences("voice_helper", android.content.Context.MODE_PRIVATE)
                 val useA = prefs.getBoolean("next_helper_a", false)
                 prefs.edit().putBoolean("next_helper_a", !useA).apply()
-                val helperPath = if (useA)
-                    "/sdcard/Download/tg-voice-helper-v05a.aix"
-                else
-                    "/sdcard/Download/tg-voice-helper-v05b.aix"
-                putExtra("open_params", helperPath)
-                putExtra("test_run_id", "tg_native_tdlib_voice_${System.currentTimeMillis()}")
+                putExtra(
+                    "open_params",
+                    if (useA) "/sdcard/Download/tg-voice-helper-v05a.aix" else "/sdcard/Download/tg-voice-helper-v05b.aix"
+                )
+                putExtra("test_run_id", "tg_native_inline_voice_${System.currentTimeMillis()}")
             }
+            Timber.tag("ReplyPanel").i("launchHiddenHelper")
             ctx.startService(intent)
+            // The helper may briefly take foreground to access Rokid SpeechRecognition.
+            // Pull the native Telegram task back repeatedly so the user continues to see
+            // the same chat/reply page while bridge events fill the transcript box.
+            root.postDelayed({ bringNativeTaskToFront() }, 350)
+            root.postDelayed({ bringNativeTaskToFront() }, 1200)
+            root.postDelayed({ bringNativeTaskToFront() }, 2500)
         }.onFailure { e ->
-            Timber.tag("Voice").w(e, "launchHelper failed")
+            Timber.tag("Voice").w(e, "launchHiddenHelper failed")
+            BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
+            cancelText()
         }
+    }
+
+    private fun bringNativeTaskToFront() {
+        runCatching {
+            (ctx as? Activity)?.let { activity ->
+                val am = activity.getSystemService(ActivityManager::class.java)
+                am.moveTaskToFront(activity.taskId, ActivityManager.MOVE_TASK_WITH_HOME)
+            }
+        }.onFailure { Timber.tag("ReplyPanel").w(it, "moveTaskToFront failed") }
     }
 
     private fun sendTextTranscript() {
         val text = textFinal?.takeIf { it.isNotBlank() } ?: return
         sendTextMessage(text)
-        bridge.cancel()
         textActive = false
         textFinal = null
+        stopInlineSpeechRecognizer()
+        bridge.cancel()
         go(State.DEFAULT)
     }
 
     private fun cancelText() {
-        bridge.cancel()
         textActive = false
         textFinal = null
+        stopInlineSpeechRecognizer()
+        bridge.cancel()
         go(State.MENU)
     }
 

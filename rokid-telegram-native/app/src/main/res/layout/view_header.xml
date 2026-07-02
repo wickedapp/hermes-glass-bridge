@@ -50,8 +50,8 @@
 
     <TextView
         android:id="@+id/header_pin"
-        android:layout_width="42px"
-        android:layout_height="28px"
+        android:layout_width="34px"
+        android:layout_height="30px"
         android:layout_marginStart="6px"
         android:background="@drawable/bg_card_row_state"
         android:clickable="true"
@@ -60,13 +60,13 @@
         android:gravity="center"
         android:text="@string/action_pin"
         android:textColor="@color/primary_50"
-        android:textSize="13px"
+        android:textSize="22px"
         android:visibility="gone" />
 
     <TextView
         android:id="@+id/header_mute"
-        android:layout_width="42px"
-        android:layout_height="28px"
+        android:layout_width="34px"
+        android:layout_height="30px"
         android:layout_marginStart="6px"
         android:background="@drawable/bg_card_row_state"
         android:clickable="true"
@@ -75,6 +75,6 @@
         android:gravity="center"
         android:text="@string/action_mute"
         android:textColor="@color/primary_50"
-        android:textSize="12px"
+        android:textSize="20px"
         android:visibility="gone" />
 </LinearLayout>
