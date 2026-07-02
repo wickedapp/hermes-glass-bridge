@@ -38,36 +38,26 @@ class MessageRepo(
     }
 
     /**
-     * Load at least the 100 most recent messages when available. The chat view only
-     * renders a few rows at a time, but the adapter must have a real history buffer
-     * so active message mode can walk one row at a time instead of getting stuck at
-     * the 3-5 visible rows.
+     * Lazy-load only the newest visible slice. Older messages are pulled in small
+     * batches only when the user moves upward past the oldest loaded row.
      */
     suspend fun loadHistory() {
-        loadHistory(minMessages = 100)
+        loadInitial(limit = 5)
     }
 
-    suspend fun loadHistory(minMessages: Int) {
-        val limit = 50
+    suspend fun loadInitial(limit: Int = 5): Int {
         var received = load(fromMessageId = 0L, limit = limit)
         if (received == 0 || synchronized(cache) { cache.size } == 0) {
             // OpenChat sometimes only primes TDLib; give it a short beat then retry.
             delay(250)
             received = load(fromMessageId = 0L, limit = limit)
         }
-        var safety = 0
-        while (synchronized(cache) { cache.size } < minMessages && received > 0 && safety++ < 8) {
-            val before = synchronized(cache) { cache.size }
-            received = loadOlderInternal(limit)
-            val after = synchronized(cache) { cache.size }
-            if (after <= before) break
-            if (received < limit) break
-        }
+        return received
     }
 
-    /** Prepend messages older than the oldest cached message. */
-    suspend fun loadOlder() {
-        loadOlderInternal(limit = 50)
+    /** Prepend a small batch older than the oldest cached message. */
+    suspend fun loadOlder(limit: Int = 5): Int {
+        return loadOlderInternal(limit = limit)
     }
 
     private suspend fun loadOlderInternal(limit: Int): Int {
@@ -91,12 +81,21 @@ class MessageRepo(
             chatId, fromMessageId, limit, msgs.size, result.totalCount)
         if (msgs.isEmpty()) return 0
 
-        msgs.forEach { put(toRow(it)) }
+        val rows = msgs.map { toRow(it) }
+        val inserted = synchronized(cache) {
+            var count = 0
+            rows.forEach { row ->
+                if (!cache.containsKey(row.id)) count += 1
+                cache[row.id] = row
+            }
+            _messages.value = cache.values.toList()
+            count
+        }
 
         // Mark as viewed — non-critical, fire-and-forget
         val ids = msgs.map { it.id }.toLongArray()
         td.send(TdApi.ViewMessages(chatId, ids, null, true)) {}
-        return msgs.size
+        return inserted
     }
 
     private fun put(row: MsgRow) {

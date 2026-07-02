@@ -65,6 +65,7 @@ class ChatFragment : Fragment() {
     private var pinButton: TextView? = null
     private var muteButton: TextView? = null
     private var selectedMessagePosition: Int = RecyclerView.NO_POSITION
+    private var pendingMessagePositionAfterHistoryLoad: Int? = null
     private var didInitialScrollToNewest = false
 
     /** Single-slot player for incoming voice notes; null until first use. */
@@ -112,8 +113,14 @@ class ChatFragment : Fragment() {
         val r = repo ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             r.messages.collect { rows ->
+                Timber.tag("ChatFragment").i("chat=%d rows=%d selected=%d title=%s", chatId, rows.size, selectedMessagePosition, chatTitle)
                 adapter.submit(rows)
-                if (selectedMessagePosition != RecyclerView.NO_POSITION) {
+                val pending = pendingMessagePositionAfterHistoryLoad
+                if (pending != null) {
+                    pendingMessagePositionAfterHistoryLoad = null
+                    selectedMessagePosition = pending.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
+                    focusMessageAt(selectedMessagePosition)
+                } else if (selectedMessagePosition != RecyclerView.NO_POSITION) {
                     selectedMessagePosition = selectedMessagePosition.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
                 }
                 if (!didInitialScrollToNewest && rows.isNotEmpty()) {
@@ -123,9 +130,10 @@ class ChatFragment : Fragment() {
                 }
             }
         }
-        // Only load history if cache is empty (service-scoped repo already has it on re-entry)
-        if (r.messages.value.size < 100) {
-            viewLifecycleOwner.lifecycleScope.launch { r.loadHistory(minMessages = 100) }
+        // Lazy loading: start with only the latest 5 messages; prepend 5 older
+        // messages only when active message selection moves above the oldest loaded row.
+        if (r.messages.value.isEmpty()) {
+            viewLifecycleOwner.lifecycleScope.launch { r.loadInitial(limit = 5) }
         }
 
         // Wire the reply state machine. Captures the chatId locally for the OGG-send callback
@@ -552,9 +560,18 @@ class ChatFragment : Fragment() {
             selectedMessagePosition = (count - 1).coerceAtLeast(0)
         }
         if (delta < 0 && selectedMessagePosition <= 0) {
-            viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
-            selectedMessagePosition = 0
-            focusMessageAt(0)
+            viewLifecycleOwner.lifecycleScope.launch {
+                val inserted = repo?.loadOlder(limit = 5) ?: 0
+                if (inserted > 0) {
+                    // Older rows are prepended before the current first row. Select the
+                    // newest of that newly loaded batch so Up still moves exactly one
+                    // message older than the previous top item.
+                    pendingMessagePositionAfterHistoryLoad = inserted - 1
+                } else {
+                    selectedMessagePosition = 0
+                    focusMessageAt(0)
+                }
+            }
             return
         }
         val step = if (delta > 0) 1 else -1
