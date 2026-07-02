@@ -544,10 +544,6 @@ class ChatFragment : Fragment() {
         val from = if (current != RecyclerView.NO_POSITION) current else fallback
         val target = (from + delta).coerceIn(0, count - 1)
         focusMessageAt(target)
-        // Keep the list visibly moving in active message mode. Focus moves between
-        // selectable bubbles, while this small scroll prevents the viewport from
-        // feeling stuck when the focused item is already partly visible.
-        list.smoothScrollBy(0, delta * 96)
     }
 
     private fun focusedMessageAdapterPosition(list: RecyclerView): Int {

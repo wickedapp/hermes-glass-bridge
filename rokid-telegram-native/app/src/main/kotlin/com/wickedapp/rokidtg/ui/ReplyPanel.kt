@@ -78,6 +78,7 @@ class ReplyPanel(
     private var encoder: VoiceNoteEncoder? = null
     private var outFile: File? = null
     private var recordStartMs = 0L
+    private var menuFocusIndex = 0
     private val timerHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val timerTick = object : Runnable {
         override fun run() {
@@ -133,6 +134,7 @@ class ReplyPanel(
 
     /** Open reply actions directly. Used when the bottom Reply button is activated from window focus. */
     fun openMenu() {
+        menuFocusIndex = 0
         go(State.MENU)
     }
 
@@ -153,9 +155,16 @@ class ReplyPanel(
             State.TEXT -> listOf(btnTextSend, btnTextCancel)
             State.BT -> listOf(btInput, btnBtSend)
         }
-        val focused = root.findFocus()
-        val idx = order.indexOfFirst { it === focused }.takeIf { it >= 0 } ?: 0
-        val next = order[(idx + delta).coerceIn(0, order.lastIndex)]
+        val step = if (delta > 0) 1 else if (delta < 0) -1 else 0
+        val nextIndex = if (state == State.MENU) {
+            menuFocusIndex = (menuFocusIndex + step).coerceIn(0, order.lastIndex)
+            menuFocusIndex
+        } else {
+            val focused = root.findFocus()
+            val idx = order.indexOfFirst { it === focused }.takeIf { it >= 0 } ?: 0
+            (idx + step).coerceIn(0, order.lastIndex)
+        }
+        val next = order[nextIndex]
         next.isFocusableInTouchMode = true
         next.requestFocusFromTouch()
         return true
@@ -207,7 +216,10 @@ class ReplyPanel(
     private fun focusForState(target: State) {
         val focusTarget = when (target) {
             State.DEFAULT -> btnReply
-            State.MENU    -> btnVoice
+            State.MENU    -> {
+                menuFocusIndex = 0
+                btnVoice
+            }
             State.VOICE   -> btnVoiceSend
             State.TEXT    -> btnTextSend
             State.BT      -> btInput
