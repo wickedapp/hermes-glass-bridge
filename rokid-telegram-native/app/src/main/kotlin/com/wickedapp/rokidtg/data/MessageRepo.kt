@@ -3,6 +3,7 @@ package com.wickedapp.rokidtg.data
 import android.content.Context
 import com.wickedapp.rokidtg.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance
@@ -37,32 +38,41 @@ class MessageRepo(
     }
 
     /**
-     * Load the 30 most recent messages. fromMessageId=0 means "from newest".
-     *
-     * Retries on a short result because TDLib's first GetChatHistory after
-     * OpenChat typically returns only the locally-cached lastMessage (often
-     * just 1 row from the chat-list sync). The first call triggers the server
-     * fetch; the actual history shows up on the next call. We keep calling
-     * until the result is short — meaning we've reached the start of history.
+     * Load at least the 100 most recent messages when available. The chat view only
+     * renders a few rows at a time, but the adapter must have a real history buffer
+     * so active message mode can walk one row at a time instead of getting stuck at
+     * the 3-5 visible rows.
      */
     suspend fun loadHistory() {
-        val limit = 30
-        // Initial newest-first fetch.
-        val firstBatch = load(fromMessageId = 0L, limit = limit)
-        if (firstBatch in 1 until limit) {
-            // Likely returned only the cached lastMessage — pull older to force a real server fetch.
-            val oldest = synchronized(cache) { cache.firstKey2() }
-            load(fromMessageId = oldest, limit = limit)
-        } else if (firstBatch == 0) {
-            // Empty first call; retry once — server fetch should have arrived by now.
-            load(fromMessageId = 0L, limit = limit)
+        loadHistory(minMessages = 100)
+    }
+
+    suspend fun loadHistory(minMessages: Int) {
+        val limit = 50
+        var received = load(fromMessageId = 0L, limit = limit)
+        if (received == 0 || synchronized(cache) { cache.size } == 0) {
+            // OpenChat sometimes only primes TDLib; give it a short beat then retry.
+            delay(250)
+            received = load(fromMessageId = 0L, limit = limit)
+        }
+        var safety = 0
+        while (synchronized(cache) { cache.size } < minMessages && received > 0 && safety++ < 8) {
+            val before = synchronized(cache) { cache.size }
+            received = loadOlderInternal(limit)
+            val after = synchronized(cache) { cache.size }
+            if (after <= before) break
+            if (received < limit) break
         }
     }
 
-    /** Prepend 30 messages older than the oldest cached message. */
+    /** Prepend messages older than the oldest cached message. */
     suspend fun loadOlder() {
+        loadOlderInternal(limit = 50)
+    }
+
+    private suspend fun loadOlderInternal(limit: Int): Int {
         val oldest = synchronized(cache) { cache.firstKey2() }
-        load(fromMessageId = oldest, limit = 30)
+        return load(fromMessageId = oldest, limit = limit)
     }
 
     /** Returns the number of messages received (0 if empty/error). */

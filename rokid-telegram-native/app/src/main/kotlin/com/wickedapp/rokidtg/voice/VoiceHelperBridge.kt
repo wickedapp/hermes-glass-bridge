@@ -34,6 +34,7 @@ class VoiceHelperBridge(port: Int = 0) {
     interface Listener {
         fun onInterim(text: String) {}
         fun onFinal(text: String) {}
+        fun onReady() {}
         fun onError(code: String, msg: String) {}
         fun onTimeout(stage: String) {}
     }
@@ -126,6 +127,7 @@ class VoiceHelperBridge(port: Int = 0) {
                 // listening. The explicit ready frame is still accepted below when it arrives.
                 readyTimer?.cancel(false)
                 transcriptTimer?.cancel(false)
+                listener.get()?.onReady()
                 armTranscriptTimer()
             }
             override fun onClose(c: WebSocket?, code: Int, r: String?, remote: Boolean) {
@@ -148,6 +150,7 @@ class VoiceHelperBridge(port: Int = 0) {
                         }
                         readyTimer?.cancel(false)
                         transcriptTimer?.cancel(false)
+                        l.onReady()
                         armTranscriptTimer()
                     }
                     "interim"  -> {

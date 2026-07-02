@@ -64,6 +64,8 @@ class ChatFragment : Fragment() {
     private var replyWindow: View? = null
     private var pinButton: TextView? = null
     private var muteButton: TextView? = null
+    private var selectedMessagePosition: Int = RecyclerView.NO_POSITION
+    private var didInitialScrollToNewest = false
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -111,12 +113,19 @@ class ChatFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             r.messages.collect { rows ->
                 adapter.submit(rows)
-                scrollMessagesToNewest(list)
+                if (selectedMessagePosition != RecyclerView.NO_POSITION) {
+                    selectedMessagePosition = selectedMessagePosition.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
+                }
+                if (!didInitialScrollToNewest && rows.isNotEmpty()) {
+                    didInitialScrollToNewest = true
+                    selectedMessagePosition = rows.lastIndex
+                    scrollMessagesToNewest(list)
+                }
             }
         }
         // Only load history if cache is empty (service-scoped repo already has it on re-entry)
-        if (r.messages.value.isEmpty()) {
-            viewLifecycleOwner.lifecycleScope.launch { r.loadHistory() }
+        if (r.messages.value.size < 100) {
+            viewLifecycleOwner.lifecycleScope.launch { r.loadHistory(minMessages = 100) }
         }
 
         // Wire the reply state machine. Captures the chatId locally for the OGG-send callback
@@ -418,7 +427,8 @@ class ChatFragment : Fragment() {
                 list.isFocusable = true
                 list.isFocusableInTouchMode = true
                 list.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-                focusMessageAt(lastVisibleMessagePosition(list))
+                selectedMessagePosition = (adapter.itemCount - 1).coerceAtLeast(0)
+                focusMessageAt(selectedMessagePosition)
                 modeHint?.text = getString(R.string.chat_hint_messages_active)
             }
             WindowSlot.REPLY -> {
@@ -536,14 +546,20 @@ class ChatFragment : Fragment() {
     }
 
     private fun moveFocusInsideMessages(delta: Int) {
-        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
         val count = adapter.itemCount
         if (count <= 0) return
-        val current = focusedMessageAdapterPosition(list)
-        val fallback = if (delta < 0) lastVisibleMessagePosition(list) else firstVisibleMessagePosition(list)
-        val from = if (current != RecyclerView.NO_POSITION) current else fallback
-        val target = (from + delta).coerceIn(0, count - 1)
-        focusMessageAt(target)
+        if (selectedMessagePosition == RecyclerView.NO_POSITION) {
+            selectedMessagePosition = (count - 1).coerceAtLeast(0)
+        }
+        if (delta < 0 && selectedMessagePosition <= 0) {
+            viewLifecycleOwner.lifecycleScope.launch { repo?.loadOlder() }
+            selectedMessagePosition = 0
+            focusMessageAt(0)
+            return
+        }
+        val step = if (delta > 0) 1 else -1
+        selectedMessagePosition = (selectedMessagePosition + step).coerceIn(0, count - 1)
+        focusMessageAt(selectedMessagePosition)
     }
 
     private fun focusedMessageAdapterPosition(list: RecyclerView): Int {

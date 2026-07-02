@@ -393,6 +393,10 @@ class ReplyPanel(
     private fun startBridge() {
         Timber.tag("ReplyPanel").i("startBridge port=%d", bridge.boundPort)
         bridge.start(object : VoiceHelperBridge.Listener {
+            override fun onReady() {
+                root.post { bringNativeTaskToFront() }
+            }
+
             override fun onInterim(text: String) {
                 root.post {
                     if (!textActive) return@post
@@ -450,12 +454,13 @@ class ReplyPanel(
             }
             Timber.tag("ReplyPanel").i("launchHiddenHelper")
             ctx.startService(intent)
-            // The helper may briefly take foreground to access Rokid SpeechRecognition.
-            // Pull the native Telegram task back repeatedly so the user continues to see
-            // the same chat/reply page while bridge events fill the transcript box.
-            root.postDelayed({ bringNativeTaskToFront() }, 350)
-            root.postDelayed({ bringNativeTaskToFront() }, 1200)
-            root.postDelayed({ bringNativeTaskToFront() }, 2500)
+            // Let JsaiActivity mount the Ink page first; pulling it back too early can
+            // stop the helper before its WebSocket connects. After that first short
+            // mount window, repeatedly return to native so the helper cannot strand
+            // the user on the recognition page.
+            listOf(300L, 650L, 1000L, 1500L, 2200L, 3500L, 5000L, 8000L).forEach { delayMs ->
+                root.postDelayed({ bringNativeTaskToFront() }, delayMs)
+            }
         }.onFailure { e ->
             Timber.tag("Voice").w(e, "launchHiddenHelper failed")
             BannerHost.show(ctx.getString(R.string.voice_helper_not_ready), BannerHost.Kind.WARN)
