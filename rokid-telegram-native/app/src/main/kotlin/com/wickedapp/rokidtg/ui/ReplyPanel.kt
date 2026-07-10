@@ -326,7 +326,7 @@ class ReplyPanel(
         val session = DictationSession(
             sessionId = UUID.randomUUID().toString(),
             chatId = chatId,
-            lang = "zh-CN",
+            lang = "zh-TW",
         )
         dictationSessionId = session.sessionId
         dictationProvider.start(session, object : DictationProvider.Callback {

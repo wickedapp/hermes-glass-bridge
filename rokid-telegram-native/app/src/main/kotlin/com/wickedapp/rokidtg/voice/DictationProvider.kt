@@ -21,7 +21,7 @@ interface DictationProvider {
 data class DictationSession(
     val sessionId: String,
     val chatId: Long,
-    val lang: String = "zh-CN",
+    val lang: String = "zh-TW",
 )
 
 data class DictationError(
