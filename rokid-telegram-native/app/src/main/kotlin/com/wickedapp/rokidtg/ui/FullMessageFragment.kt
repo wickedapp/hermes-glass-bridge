@@ -33,13 +33,16 @@ class FullMessageFragment : Fragment() {
         scrollView.isFocusableInTouchMode = true
         scrollView.requestFocus()
         view.isFocusableInTouchMode = true
-        view.setOnClickListener { closeReaderOnly() }
+        // Tapping inside the reader should keep the user in the full-message view.
+        // Only Back or the explicit back icon exits this overlay.
+        view.setOnClickListener { /* consume, do not close */ }
         view.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> { scrollByPage(+1); true }
                 KeyEvent.KEYCODE_DPAD_UP -> { scrollByPage(-1); true }
-                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BACK -> {
+                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> true
+                KeyEvent.KEYCODE_BACK -> {
                     closeReaderOnly(); true
                 }
                 else -> false
@@ -57,7 +60,7 @@ class FullMessageFragment : Fragment() {
         SpriteBroadcast.Gesture.SWIPE_BACK -> { scrollByPage(-1); true }
         SpriteBroadcast.Gesture.TAP,
         SpriteBroadcast.Gesture.BUTTON_CLICK,
-        SpriteBroadcast.Gesture.TWO_TAP,
+        SpriteBroadcast.Gesture.TWO_TAP -> true
         SpriteBroadcast.Gesture.BACK -> {
             closeReaderOnly()
             true
