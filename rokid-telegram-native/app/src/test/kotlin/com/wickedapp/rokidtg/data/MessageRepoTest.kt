@@ -147,9 +147,20 @@ class MessageRepoTest {
             emoji = "🎲"
             value = 6
         }
+        val rich = TdApi.MessageRichMessage().apply {
+            message = TdApi.RichMessage(
+                arrayOf(
+                    TdApi.PageBlockTitle(TdApi.RichTextPlain("實際標題")),
+                    TdApi.PageBlockParagraph(TdApi.RichTextPlain("實際內容 123")),
+                ),
+                false,
+                true,
+            )
+        }
         td.queueMessages(listOf(
             FakeMessageTdLib.msg(id = 10L, chatId = 100L, content = sticker),
             FakeMessageTdLib.msg(id = 20L, chatId = 100L, content = dice),
+            FakeMessageTdLib.msg(id = 30L, chatId = 100L, content = rich),
         ))
 
         repo.loadHistory()
@@ -163,6 +174,9 @@ class MessageRepoTest {
         val diceRow = rows[1]
         assertTrue(diceRow is MsgRow.Unsupported)
         assertEquals("🎲 dice 6", (diceRow as MsgRow.Unsupported).label)
+        val richRow = rows[2]
+        assertTrue(richRow is MsgRow.Text)
+        assertEquals("實際標題 實際內容 123", (richRow as MsgRow.Text).text)
 
         repoScope.cancel()
     }

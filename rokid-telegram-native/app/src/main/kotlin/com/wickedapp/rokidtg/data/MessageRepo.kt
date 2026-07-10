@@ -165,6 +165,14 @@ class MessageRepo(
                 c.emoji?.takeIf { it.isNotBlank() } ?: text(R.string.message_emoji)
             )
 
+            is TdApi.MessageRichMessage -> MsgRow.Text(
+                m.id,
+                m.date,
+                m.isOutgoing,
+                label,
+                richMessageText(c.message).ifBlank { "[${text(R.string.message_rich)}]" }
+            )
+
             else -> MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, contentSummary(c))
         }
         requestSenderNameIfNeeded(m)
@@ -184,6 +192,7 @@ class MessageRepo(
         is TdApi.MessageCall -> text(R.string.message_call)
         is TdApi.MessageInvoice -> bracket(text(R.string.message_invoice), c.productInfo?.title)
         is TdApi.MessageGame -> bracket(text(R.string.message_game), c.game?.title)
+        is TdApi.MessageRichMessage -> richMessageText(c.message).ifBlank { "[${text(R.string.message_rich)}]" }
         is TdApi.MessageExpiredPhoto -> text(R.string.message_expired_photo)
         is TdApi.MessageExpiredVideo -> text(R.string.message_expired_video)
         is TdApi.MessageUnsupported -> text(R.string.message_unsupported)
@@ -204,6 +213,82 @@ class MessageRepo(
         if (detail.isNullOrBlank()) "[$kind]" else "[$kind] $detail"
 
     private fun List<String?>.firstNonBlank(): String? = firstOrNull { !it.isNullOrBlank() }
+
+    private fun richMessageText(message: TdApi.RichMessage?): String =
+        message?.blocks.joinNonBlank { pageBlockText(it) }
+
+    private fun pageBlockText(block: TdApi.PageBlock?): String = when (block) {
+        is TdApi.PageBlockTitle -> richText(block.title)
+        is TdApi.PageBlockSubtitle -> richText(block.subtitle)
+        is TdApi.PageBlockHeader -> richText(block.header)
+        is TdApi.PageBlockSubheader -> richText(block.subheader)
+        is TdApi.PageBlockKicker -> richText(block.kicker)
+        is TdApi.PageBlockParagraph -> richText(block.text)
+        is TdApi.PageBlockPreformatted -> richText(block.text)
+        is TdApi.PageBlockFooter -> richText(block.footer)
+        is TdApi.PageBlockThinking -> richText(block.text)
+        is TdApi.PageBlockAuthorDate -> richText(block.author)
+        is TdApi.PageBlockBlockQuote -> listOf(block.blocks.joinNonBlank { pageBlockText(it) }, richText(block.credit)).joinClean()
+        is TdApi.PageBlockPullQuote -> listOf(richText(block.text), richText(block.credit)).joinClean()
+        is TdApi.PageBlockList -> block.items.joinNonBlank { item ->
+            listOf(item.label, item.blocks.joinNonBlank { pageBlockText(it) }).joinClean()
+        }
+        is TdApi.PageBlockDetails -> listOf(richText(block.header), block.blocks.joinNonBlank { pageBlockText(it) }).joinClean()
+        is TdApi.PageBlockTable -> listOf(
+            richText(block.caption),
+            block.cells?.flatMap { row -> row.map { richText(it.text) } }?.joinToString(" ").orEmpty()
+        ).joinClean()
+        is TdApi.PageBlockCover -> pageBlockText(block.cover)
+        is TdApi.PageBlockCollage -> listOf(block.blocks.joinNonBlank { pageBlockText(it) }, captionText(block.caption)).joinClean()
+        is TdApi.PageBlockSlideshow -> listOf(block.blocks.joinNonBlank { pageBlockText(it) }, captionText(block.caption)).joinClean()
+        is TdApi.PageBlockPhoto -> captionText(block.caption)
+        is TdApi.PageBlockVideo -> captionText(block.caption)
+        is TdApi.PageBlockAnimation -> captionText(block.caption)
+        is TdApi.PageBlockAudio -> captionText(block.caption)
+        is TdApi.PageBlockVoiceNote -> captionText(block.caption)
+        is TdApi.PageBlockEmbedded -> listOf(block.url, block.html, captionText(block.caption)).joinClean()
+        is TdApi.PageBlockEmbeddedPost -> listOf(block.author, block.blocks.joinNonBlank { pageBlockText(it) }, captionText(block.caption), block.url).joinClean()
+        is TdApi.PageBlockChatLink -> listOf(block.title, block.username?.let { "@$it" }).joinClean()
+        is TdApi.PageBlockRelatedArticles -> listOf(
+            richText(block.header),
+            block.articles.joinNonBlank { listOf(it.title, it.description, it.author).joinClean() }
+        ).joinClean()
+        is TdApi.PageBlockMap -> captionText(block.caption)
+        is TdApi.PageBlockMathematicalExpression -> block.expression.orEmpty()
+        else -> ""
+    }
+
+    private fun captionText(caption: TdApi.PageBlockCaption?): String =
+        listOf(richText(caption?.text), richText(caption?.credit)).joinClean()
+
+    private fun richText(text: TdApi.RichText?): String = when (text) {
+        is TdApi.RichTextPlain -> text.text.orEmpty()
+        is TdApi.RichTextBold -> richText(text.text)
+        is TdApi.RichTextItalic -> richText(text.text)
+        is TdApi.RichTextUnderline -> richText(text.text)
+        is TdApi.RichTextStrikethrough -> richText(text.text)
+        is TdApi.RichTextFixed -> richText(text.text)
+        is TdApi.RichTextMarked -> richText(text.text)
+        is TdApi.RichTextSubscript -> richText(text.text)
+        is TdApi.RichTextSuperscript -> richText(text.text)
+        is TdApi.RichTextUrl -> listOf(richText(text.text), text.url).joinClean()
+        is TdApi.RichTextEmailAddress -> listOf(richText(text.text), text.emailAddress).joinClean()
+        is TdApi.RichTextPhoneNumber -> listOf(richText(text.text), text.phoneNumber).joinClean()
+        is TdApi.RichTextBankCardNumber -> listOf(richText(text.text), text.bankCardNumber).joinClean()
+        is TdApi.RichTextReference -> richText(text.text)
+        is TdApi.RichTextAnchorLink -> listOf(richText(text.text), text.url).joinClean()
+        is TdApi.RichTexts -> text.texts.joinNonBlank { richText(it) }
+        else -> ""
+    }
+
+    private fun <T> Array<T>?.joinNonBlank(transform: (T) -> String): String =
+        this?.map(transform).orEmpty().joinClean()
+
+    private fun Iterable<String?>.joinClean(): String = filter { !it.isNullOrBlank() }
+        .joinToString(" ") { it!!.trim() }
+        .cleanSpaces()
+
+    private fun String.cleanSpaces(): String = replace(Regex("\\s+"), " ").trim()
 
     private fun humanizeMessageClass(simpleName: String): String {
         val raw = simpleName.removePrefix("Message").ifBlank { text(R.string.message_unsupported) }

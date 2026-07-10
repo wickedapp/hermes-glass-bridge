@@ -91,6 +91,7 @@
     <string name="message_call">通話</string>
     <string name="message_invoice">帳單</string>
     <string name="message_game">遊戲</string>
+    <string name="message_rich">富文本訊息</string>
     <string name="message_service">系統訊息</string>
     <string name="message_pinned">置頂訊息</string>
     <string name="message_screenshot">已截圖</string>

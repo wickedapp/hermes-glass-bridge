@@ -128,6 +128,7 @@ class ChatRepo(
         is TdApi.MessageLocation -> "[location]"
         is TdApi.MessageVenue -> bracket("location", c.venue?.title)
         is TdApi.MessagePoll -> bracket("poll", c.poll?.question?.text)
+        is TdApi.MessageRichMessage -> richMessageText(c.message).ifBlank { "[rich]" }
         is TdApi.MessageCustomServiceAction -> c.text.takeIf { it.isNotBlank() } ?: "[service]"
         is TdApi.MessageUnsupported -> "[unsupported]"
         else -> bracket(c.javaClass.simpleName.removePrefix("Message").replace(Regex("(?<=[a-z])(?=[A-Z])"), " ").lowercase(), null)
@@ -136,6 +137,62 @@ class ChatRepo(
     private fun bracket(kind: String, detail: String?): String = if (detail.isNullOrBlank()) "[$kind]" else "[$kind] $detail"
 
     private fun List<String?>.firstNonBlank(): String? = firstOrNull { !it.isNullOrBlank() }
+
+    private fun richMessageText(message: TdApi.RichMessage?): String =
+        message?.blocks.joinNonBlank { pageBlockText(it) }
+
+    private fun pageBlockText(block: TdApi.PageBlock?): String = when (block) {
+        is TdApi.PageBlockTitle -> richText(block.title)
+        is TdApi.PageBlockSubtitle -> richText(block.subtitle)
+        is TdApi.PageBlockHeader -> richText(block.header)
+        is TdApi.PageBlockSubheader -> richText(block.subheader)
+        is TdApi.PageBlockParagraph -> richText(block.text)
+        is TdApi.PageBlockPreformatted -> richText(block.text)
+        is TdApi.PageBlockBlockQuote -> block.blocks.joinNonBlank { pageBlockText(it) }
+        is TdApi.PageBlockPullQuote -> richText(block.text)
+        is TdApi.PageBlockList -> block.items.joinNonBlank { item -> listOf(item.label, item.blocks.joinNonBlank { pageBlockText(it) }).joinClean() }
+        is TdApi.PageBlockDetails -> listOf(richText(block.header), block.blocks.joinNonBlank { pageBlockText(it) }).joinClean()
+        is TdApi.PageBlockCover -> pageBlockText(block.cover)
+        is TdApi.PageBlockCollage -> block.blocks.joinNonBlank { pageBlockText(it) }
+        is TdApi.PageBlockSlideshow -> block.blocks.joinNonBlank { pageBlockText(it) }
+        is TdApi.PageBlockPhoto -> captionText(block.caption)
+        is TdApi.PageBlockVideo -> captionText(block.caption)
+        is TdApi.PageBlockAnimation -> captionText(block.caption)
+        is TdApi.PageBlockAudio -> captionText(block.caption)
+        is TdApi.PageBlockVoiceNote -> captionText(block.caption)
+        is TdApi.PageBlockEmbedded -> listOf(block.url, block.html, captionText(block.caption)).joinClean()
+        is TdApi.PageBlockEmbeddedPost -> listOf(block.author, block.blocks.joinNonBlank { pageBlockText(it) }, captionText(block.caption), block.url).joinClean()
+        is TdApi.PageBlockChatLink -> listOf(block.title, block.username?.let { "@$it" }).joinClean()
+        is TdApi.PageBlockRelatedArticles -> block.articles.joinNonBlank { listOf(it.title, it.description, it.author).joinClean() }
+        is TdApi.PageBlockMap -> captionText(block.caption)
+        is TdApi.PageBlockMathematicalExpression -> block.expression.orEmpty()
+        else -> ""
+    }
+
+    private fun captionText(caption: TdApi.PageBlockCaption?): String = listOf(richText(caption?.text), richText(caption?.credit)).joinClean()
+
+    private fun richText(text: TdApi.RichText?): String = when (text) {
+        is TdApi.RichTextPlain -> text.text.orEmpty()
+        is TdApi.RichTextBold -> richText(text.text)
+        is TdApi.RichTextItalic -> richText(text.text)
+        is TdApi.RichTextUnderline -> richText(text.text)
+        is TdApi.RichTextStrikethrough -> richText(text.text)
+        is TdApi.RichTextFixed -> richText(text.text)
+        is TdApi.RichTextMarked -> richText(text.text)
+        is TdApi.RichTextSubscript -> richText(text.text)
+        is TdApi.RichTextSuperscript -> richText(text.text)
+        is TdApi.RichTextUrl -> listOf(richText(text.text), text.url).joinClean()
+        is TdApi.RichTextEmailAddress -> listOf(richText(text.text), text.emailAddress).joinClean()
+        is TdApi.RichTextPhoneNumber -> listOf(richText(text.text), text.phoneNumber).joinClean()
+        is TdApi.RichTextBankCardNumber -> listOf(richText(text.text), text.bankCardNumber).joinClean()
+        is TdApi.RichTextReference -> richText(text.text)
+        is TdApi.RichTextAnchorLink -> listOf(richText(text.text), text.url).joinClean()
+        is TdApi.RichTexts -> text.texts.joinNonBlank { richText(it) }
+        else -> ""
+    }
+
+    private fun <T> Array<T>?.joinNonBlank(transform: (T) -> String): String = this?.map(transform).orEmpty().joinClean()
+    private fun Iterable<String?>.joinClean(): String = filter { !it.isNullOrBlank() }.joinToString(" ") { it!!.trim() }.replace(Regex("\\s+"), " ").trim()
 
     private fun isPinned(chatId: Long): Boolean = prefs?.isPinned(chatId) == true
     private fun isMuted(chatId: Long): Boolean = prefs?.isMuted(chatId) == true

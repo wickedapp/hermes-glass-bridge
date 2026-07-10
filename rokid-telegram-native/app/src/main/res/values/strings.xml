@@ -91,6 +91,7 @@
     <string name="message_call">call</string>
     <string name="message_invoice">invoice</string>
     <string name="message_game">game</string>
+    <string name="message_rich">rich message</string>
     <string name="message_service">service</string>
     <string name="message_pinned">pinned message</string>
     <string name="message_screenshot">screenshot taken</string>
