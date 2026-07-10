@@ -5,7 +5,6 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -16,6 +15,9 @@ import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.ChatRepo
 import com.wickedapp.rokidtg.data.ChatRow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class ChatListFragment : Fragment() {
 
@@ -112,9 +114,10 @@ class ChatListFragment : Fragment() {
 }
 
 class RowVH(v: View, private val onClick: (Long) -> Unit) : RecyclerView.ViewHolder(v) {
-    private val title   = v.findViewById<TextView>(R.id.title)
+    private val group   = v.findViewById<TextView>(R.id.group_name)
+    private val time    = v.findViewById<TextView>(R.id.time)
     private val preview = v.findViewById<TextView>(R.id.preview)
-    private val unread  = v.findViewById<ImageView>(R.id.unread)
+    private val unread  = v.findViewById<TextView>(R.id.unread)
     private var id: Long = 0
 
     init {
@@ -123,12 +126,25 @@ class RowVH(v: View, private val onClick: (Long) -> Unit) : RecyclerView.ViewHol
 
     fun bind(r: ChatRow) {
         id = r.id
-        title.text = buildString {
+        group.text = buildString {
             if (r.isPinned) append("★ ")
             if (r.isMuted) append("🔕 ")
             append(r.title)
         }
+        group.isSelected = true
+        time.text = formatBbsTime(r.timestamp)
         preview.text = r.preview
-        unread.visibility = if (r.unreadCount > 0) View.VISIBLE else View.GONE
+        unread.text = if (r.unreadCount > 0) "+${r.unreadCount.coerceAtMost(99)}" else "--"
+    }
+
+    private fun formatBbsTime(timestampMs: Long): String {
+        if (timestampMs <= 0L) return "--:--"
+        return TIME_FORMAT.get()!!.format(Date(timestampMs))
+    }
+
+    companion object {
+        private val TIME_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.US)
+        }
     }
 }

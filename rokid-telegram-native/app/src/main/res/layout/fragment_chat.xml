@@ -6,11 +6,11 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="70px"
+        android:layout_height="86px"
         android:orientation="vertical"
         android:gravity="bottom"
-        android:paddingStart="12px"
-        android:paddingEnd="12px"
+        android:paddingStart="10px"
+        android:paddingEnd="10px"
         android:paddingBottom="4px">
 
         <include
@@ -18,13 +18,22 @@
             layout="@layout/view_header" />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TIME  NAME     MESSAGE"
+            android:textColor="@color/primary_50"
+            android:textSize="12px"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+
+        <TextView
             android:id="@+id/mode_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/chat_hint_focus_default"
             android:textColor="@color/primary_50"
-            android:textSize="@dimen/text_l5"
-            android:lineHeight="@dimen/line_l5"
+            android:textSize="12px"
+            android:fontFamily="monospace"
             android:singleLine="true" />
     </LinearLayout>
 
@@ -37,15 +46,15 @@
     <FrameLayout
         android:id="@+id/message_window"
         android:layout_width="match_parent"
-        android:layout_height="442px"
-        android:background="@drawable/bg_card_row_state"
+        android:layout_height="436px"
+        android:background="@color/bg"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:clickable="true"
-        android:paddingStart="6px"
-        android:paddingEnd="6px"
-        android:paddingTop="6px"
-        android:paddingBottom="6px">
+        android:paddingStart="8px"
+        android:paddingEnd="8px"
+        android:paddingTop="4px"
+        android:paddingBottom="4px">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/messages"
@@ -61,15 +70,15 @@
     <FrameLayout
         android:id="@+id/reply_window"
         android:layout_width="match_parent"
-        android:layout_height="128px"
+        android:layout_height="118px"
         android:background="@color/bg"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:clickable="true"
         android:paddingStart="12px"
         android:paddingEnd="12px"
-        android:paddingTop="10px"
-        android:paddingBottom="8px">
+        android:paddingTop="6px"
+        android:paddingBottom="6px">
 
         <include
             layout="@layout/overlay_reply"

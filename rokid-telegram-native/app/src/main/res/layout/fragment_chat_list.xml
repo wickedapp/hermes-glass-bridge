@@ -6,12 +6,12 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="78px"
+        android:layout_height="70px"
         android:orientation="vertical"
         android:gravity="bottom"
-        android:paddingStart="12px"
-        android:paddingEnd="12px"
-        android:paddingBottom="8px">
+        android:paddingStart="10px"
+        android:paddingEnd="10px"
+        android:paddingBottom="4px">
 
         <include
             android:id="@+id/header"
@@ -20,14 +20,13 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/chat_list_hint"
+            android:text="GROUP    TIME  LAST MESSAGE              NEW"
             android:textColor="@color/primary_50"
-            android:textSize="@dimen/text_l5"
-            android:lineHeight="@dimen/line_l5"
+            android:textSize="12px"
+            android:fontFamily="monospace"
             android:singleLine="true" />
     </LinearLayout>
 
-    <!-- Hidden compatibility search controls; current glasses UI is focus-list first. -->
     <LinearLayout
         android:id="@+id/search_bar"
         android:layout_width="0px"
@@ -42,11 +41,11 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="562px"
-        android:paddingStart="10px"
-        android:paddingEnd="12px"
-        android:paddingTop="6px"
-        android:paddingBottom="6px">
+        android:layout_height="570px"
+        android:paddingStart="8px"
+        android:paddingEnd="8px"
+        android:paddingTop="4px"
+        android:paddingBottom="4px">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/list"
@@ -57,40 +56,4 @@
             android:focusable="true"
             android:focusableInTouchMode="true" />
     </FrameLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0px"
-        android:orientation="vertical"
-        android:gravity="top"
-        android:visibility="gone"
-        android:paddingStart="16px"
-        android:paddingEnd="16px"
-        android:paddingTop="8px">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card_stroke_40"
-            android:paddingStart="12px"
-            android:paddingEnd="12px"
-            android:paddingTop="8px"
-            android:paddingBottom="8px"
-            android:text="@string/chat_list_footer_title"
-            android:textColor="@color/primary"
-            android:textSize="@dimen/text_l4"
-            android:lineHeight="@dimen/line_l4"
-            android:singleLine="true" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6px"
-            android:text="@string/chat_list_footer_body"
-            android:textColor="@color/primary_50"
-            android:textSize="@dimen/text_l5"
-            android:lineHeight="@dimen/line_l5"
-            android:singleLine="true"
-            android:ellipsize="end" />
-    </LinearLayout>
 </LinearLayout>

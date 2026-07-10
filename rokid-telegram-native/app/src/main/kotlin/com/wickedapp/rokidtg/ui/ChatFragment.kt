@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class ChatFragment : Fragment() {
 
@@ -778,68 +781,84 @@ class MsgAdapter(
 
     class TextVH(v: View) : RecyclerView.ViewHolder(v) {
         private val bubble: View = v.findViewById(R.id.bubble)
+        private val time: android.widget.TextView = v.findViewById(R.id.time)
         private val sender: android.widget.TextView = v.findViewById(R.id.sender)
         private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
         fun bind(row: MsgRow) {
             val me = itemView.context.getString(R.string.sender_me)
-            sender.text = if (row.isOutgoing) "$me ▶" else "◀ ${row.senderLabel}"
+            time.text = formatBbsMessageTime(row.date)
+            sender.text = if (row.isOutgoing) me else row.senderLabel
+            sender.isSelected = true
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
                 is MsgRow.Unsupported -> "(${row.label})"
                 else                  -> "(${itemView.context.getString(R.string.message_unsupported)})"
             }
-            val lp = bubble.layoutParams as android.widget.FrameLayout.LayoutParams
-            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
-            bubble.layoutParams = lp
-            sender.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
-            txt.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
         }
     }
 
     class PhotoVH(v: View) : RecyclerView.ViewHolder(v) {
         // Inner LinearLayout holds focus + bg highlight; wire click there so TAP-on-focused fires.
         private val card: View = (v as ViewGroup).getChildAt(0)
+        private val time: android.widget.TextView = v.findViewById(R.id.time)
+        private val senderView: android.widget.TextView = v.findViewById(R.id.sender)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Photo, onTap: (Int) -> Unit) {
             val label = itemView.context.getString(R.string.message_photo)
             val me = itemView.context.getString(R.string.sender_me)
-            hint.text = if (row.isOutgoing) "$me ▶ · $label" else "◀ ${row.senderLabel} · $label"
-            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
-            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
-            card.layoutParams = lp
+            val sender = if (row.isOutgoing) me else row.senderLabel
+            time.text = formatBbsMessageTime(row.date)
+            senderView.text = sender
+            senderView.isSelected = true
+            hint.text = "[$label]"
             card.setOnClickListener { onTap(row.fileId) }
         }
     }
 
     class VideoVH(v: View) : RecyclerView.ViewHolder(v) {
         private val card: View = (v as ViewGroup).getChildAt(0)
+        private val time: android.widget.TextView = v.findViewById(R.id.time)
+        private val senderView: android.widget.TextView = v.findViewById(R.id.sender)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Video, onTap: (Int) -> Unit) {
             val label = itemView.context.getString(R.string.message_video)
             val me = itemView.context.getString(R.string.sender_me)
-            hint.text = if (row.isOutgoing) "$me ▶ · $label ${row.durationS}s" else "◀ ${row.senderLabel} · $label ${row.durationS}s"
-            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
-            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
-            card.layoutParams = lp
+            val sender = if (row.isOutgoing) me else row.senderLabel
+            time.text = formatBbsMessageTime(row.date)
+            senderView.text = sender
+            senderView.isSelected = true
+            hint.text = "[$label ${row.durationS}s]"
             card.setOnClickListener { onTap(row.fileId) }
         }
     }
 
     class VoiceVH(v: View) : RecyclerView.ViewHolder(v) {
         private val card: View = (v as ViewGroup).getChildAt(0)
+        private val time: android.widget.TextView = v.findViewById(R.id.time)
+        private val senderView: android.widget.TextView = v.findViewById(R.id.sender)
         private val hint: android.widget.TextView = v.findViewById(R.id.hint)
 
         fun bind(row: MsgRow.Voice, onTap: (Int) -> Unit) {
             val label = itemView.context.getString(R.string.message_voice)
             val me = itemView.context.getString(R.string.sender_me)
-            hint.text = if (row.isOutgoing) "$me ▶ · $label ${row.durationS}s" else "◀ ${row.senderLabel} · $label ${row.durationS}s"
-            val lp = card.layoutParams as android.widget.FrameLayout.LayoutParams
-            lp.gravity = if (row.isOutgoing) android.view.Gravity.END else android.view.Gravity.START
-            card.layoutParams = lp
+            val sender = if (row.isOutgoing) me else row.senderLabel
+            time.text = formatBbsMessageTime(row.date)
+            senderView.text = sender
+            senderView.isSelected = true
+            hint.text = "[$label ${row.durationS}s]"
             card.setOnClickListener { onTap(row.fileId) }
         }
     }
+}
+
+private fun formatBbsMessageTime(dateSeconds: Int): String {
+    if (dateSeconds <= 0) return "--:--"
+    return BBS_MESSAGE_TIME_FORMAT.get()!!.format(Date(dateSeconds * 1000L))
+}
+
+private val BBS_MESSAGE_TIME_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.US)
 }
