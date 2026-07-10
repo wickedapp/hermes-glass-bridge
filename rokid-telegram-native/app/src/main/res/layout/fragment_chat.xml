@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="86px"
+        android:layout_height="106px"
         android:orientation="vertical"
         android:gravity="bottom"
         android:paddingStart="10px"
@@ -46,7 +46,7 @@
     <FrameLayout
         android:id="@+id/message_window"
         android:layout_width="match_parent"
-        android:layout_height="436px"
+        android:layout_height="416px"
         android:background="#000000"
         android:focusable="true"
         android:focusableInTouchMode="true"

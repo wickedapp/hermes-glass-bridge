@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="70px"
+        android:layout_height="90px"
         android:orientation="vertical"
         android:gravity="bottom"
         android:paddingStart="10px"
@@ -41,7 +41,7 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="570px"
+        android:layout_height="550px"
         android:paddingStart="8px"
         android:paddingEnd="8px"
         android:paddingTop="4px"
