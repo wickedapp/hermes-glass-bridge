@@ -12,7 +12,7 @@
     <dimen name="stroke_min">1.5px</dimen>
     <dimen name="stroke_med">2px</dimen>
     <dimen name="stroke_thick">4px</dimen>
-    <dimen name="radius_card">12px</dimen>
+    <dimen name="radius_card">0px</dimen>
     <dimen name="icon_app">40px</dimen>
     <dimen name="icon_reg">24px</dimen>
     <dimen name="icon_min">18px</dimen>
