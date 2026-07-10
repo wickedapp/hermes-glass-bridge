@@ -786,6 +786,17 @@ class ChatFragment : Fragment() {
                     }
                 }
             }
+            is MsgRow.Sticker -> row.fileId?.let { fileId ->
+                downloadFile(fileId, "StickerPreview") { file ->
+                    if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                        messagePreviewText?.visibility = View.GONE
+                        messagePreviewImage?.apply {
+                            setImageURI(Uri.fromFile(file))
+                            visibility = View.VISIBLE
+                        }
+                    }
+                }
+            }
             is MsgRow.Voice -> downloadFile(row.fileId, "VoicePreview") { file ->
                 if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
                     playerPool().playVoice(file)
@@ -913,6 +924,7 @@ class MsgAdapter(
         is MsgRow.Photo       -> VT_PHOTO
         is MsgRow.Video       -> VT_VIDEO
         is MsgRow.Voice       -> VT_VOICE
+        is MsgRow.Sticker,
         is MsgRow.Text,
         is MsgRow.Unsupported -> VT_TEXT
     }
@@ -952,6 +964,7 @@ class MsgAdapter(
             sender.isSelected = true
             txt.text = when (row) {
                 is MsgRow.Text        -> row.text
+                is MsgRow.Sticker     -> row.label
                 is MsgRow.Unsupported -> "(${row.label})"
                 else                  -> "(${itemView.context.getString(R.string.message_unsupported)})"
             }
@@ -1025,6 +1038,7 @@ private fun MsgRow.toPreviewText(): String {
         is MsgRow.Photo -> "[photo] ${width}x${height}"
         is MsgRow.Video -> "[video] ${durationS}s"
         is MsgRow.Voice -> "[voice] ${durationS}s"
+        is MsgRow.Sticker -> label
         is MsgRow.Unsupported -> "[$label]"
     }
     return "${formatBbsMessageTime(date)}  ${senderLabel}\n$body"

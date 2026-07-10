@@ -105,12 +105,37 @@ class ChatRepo(
     private fun chatToRow(c: TdApi.Chat): ChatRow = ChatRow(
         id = c.id,
         title = c.title,
-        preview = (c.lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
+        preview = c.lastMessage?.content?.let { preview(it) } ?: "",
         unreadCount = c.unreadCount,
         timestamp = c.lastMessage?.date?.toLong()?.times(1000L) ?: 0L,
         isPinned = isPinned(c.id),
         isMuted = isMuted(c.id),
     )
+
+    private fun preview(c: TdApi.MessageContent): String = when (c) {
+        is TdApi.MessageText -> c.text?.text.orEmpty().ifBlank { "[text]" }
+        is TdApi.MessagePhoto -> bracket("photo", c.caption?.text)
+        is TdApi.MessageVideo -> bracket("video", listOf(c.video?.duration?.let { "${it}s" }, c.caption?.text).firstNonBlank())
+        is TdApi.MessageVoiceNote -> bracket("voice", c.voiceNote?.duration?.let { "${it}s" })
+        is TdApi.MessageSticker -> listOf(c.sticker?.emoji, "[sticker]").filterNotNull().filter { it.isNotBlank() }.joinToString(" ")
+        is TdApi.MessageAnimatedEmoji -> c.emoji?.takeIf { it.isNotBlank() } ?: "[emoji]"
+        is TdApi.MessageDice -> listOf(c.emoji, "dice", c.value.takeIf { it > 0 }?.toString()).filterNotNull().filter { it.isNotBlank() }.joinToString(" ")
+        is TdApi.MessageAnimation -> bracket("GIF", c.caption?.text)
+        is TdApi.MessageAudio -> bracket("audio", listOf(c.audio?.performer, c.audio?.title, c.caption?.text).firstNonBlank())
+        is TdApi.MessageDocument -> bracket("file", listOf(c.document?.fileName, c.caption?.text).firstNonBlank())
+        is TdApi.MessageVideoNote -> bracket("video note", c.videoNote?.duration?.let { "${it}s" })
+        is TdApi.MessageContact -> bracket("contact", listOf(c.contact?.firstName, c.contact?.lastName, c.contact?.phoneNumber).filterNotNull().filter { it.isNotBlank() }.joinToString(" "))
+        is TdApi.MessageLocation -> "[location]"
+        is TdApi.MessageVenue -> bracket("location", c.venue?.title)
+        is TdApi.MessagePoll -> bracket("poll", c.poll?.question?.text)
+        is TdApi.MessageCustomServiceAction -> c.text.takeIf { it.isNotBlank() } ?: "[service]"
+        is TdApi.MessageUnsupported -> "[unsupported]"
+        else -> bracket(c.javaClass.simpleName.removePrefix("Message").replace(Regex("(?<=[a-z])(?=[A-Z])"), " ").lowercase(), null)
+    }
+
+    private fun bracket(kind: String, detail: String?): String = if (detail.isNullOrBlank()) "[$kind]" else "[$kind] $detail"
+
+    private fun List<String?>.firstNonBlank(): String? = firstOrNull { !it.isNullOrBlank() }
 
     private fun isPinned(chatId: Long): Boolean = prefs?.isPinned(chatId) == true
     private fun isMuted(chatId: Long): Boolean = prefs?.isMuted(chatId) == true

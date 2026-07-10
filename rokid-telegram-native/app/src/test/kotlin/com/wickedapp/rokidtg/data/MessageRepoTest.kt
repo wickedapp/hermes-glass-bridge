@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.drinkless.tdlib.TdApi
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MessageRepoTest {
@@ -126,6 +127,42 @@ class MessageRepoTest {
         val ids = repo.messages.first().map { it.id }
         // Should still contain only id=10; id=55 must not appear
         assertEquals(listOf(10L), ids)
+
+        repoScope.cancel()
+    }
+
+    @Test
+    fun `sticker emoji and generic non-text messages render as readable rows`() = runTest {
+        val td = FakeMessageTdLib()
+        val repoScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val repo = MessageRepo(td, chatId = 100L, scope = repoScope)
+
+        val sticker = TdApi.MessageSticker().apply {
+            this.sticker = TdApi.Sticker().apply {
+                emoji = "🔥"
+                sticker = TdApi.File().apply { id = 777 }
+            }
+        }
+        val dice = TdApi.MessageDice().apply {
+            emoji = "🎲"
+            value = 6
+        }
+        td.queueMessages(listOf(
+            FakeMessageTdLib.msg(id = 10L, chatId = 100L, content = sticker),
+            FakeMessageTdLib.msg(id = 20L, chatId = 100L, content = dice),
+        ))
+
+        repo.loadHistory()
+        advanceUntilIdle()
+
+        val rows = repo.messages.first()
+        val stickerRow = rows[0]
+        assertTrue(stickerRow is MsgRow.Sticker)
+        assertEquals("🔥", (stickerRow as MsgRow.Sticker).emoji)
+        assertTrue(stickerRow.label.contains("sticker"))
+        val diceRow = rows[1]
+        assertTrue(diceRow is MsgRow.Unsupported)
+        assertEquals("🎲 dice 6", (diceRow as MsgRow.Unsupported).label)
 
         repoScope.cancel()
     }

@@ -42,6 +42,16 @@ sealed class MsgRow {
         val durationS: Int,
     ) : MsgRow()
 
+    data class Sticker(
+        override val id: Long,
+        override val date: Int,
+        override val isOutgoing: Boolean,
+        override val senderLabel: String,
+        val fileId: Int?,
+        val emoji: String,
+        val label: String,
+    ) : MsgRow()
+
     data class Unsupported(
         override val id: Long,
         override val date: Int,

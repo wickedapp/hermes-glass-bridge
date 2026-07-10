@@ -71,5 +71,14 @@ class FakeMessageTdLib : TdClientFacade {
                     null,
                 )
             }
+
+        fun msg(id: Long, chatId: Long, content: TdApi.MessageContent, date: Int = 0): TdApi.Message =
+            TdApi.Message().apply {
+                this.id = id
+                this.chatId = chatId
+                this.date = date
+                isOutgoing = false
+                this.content = content
+            }
     }
 }

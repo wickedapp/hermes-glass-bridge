@@ -148,10 +148,66 @@ class MessageRepo(
                 }
             }
 
-            else -> MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, c.javaClass.simpleName)
+            is TdApi.MessageSticker -> {
+                val sticker = c.sticker
+                val emoji = sticker?.emoji?.takeIf { it.isNotBlank() }.orEmpty()
+                val labelText = listOf(emoji, text(R.string.message_sticker)).filter { it.isNotBlank() }.joinToString(" ")
+                MsgRow.Sticker(m.id, m.date, m.isOutgoing, label, sticker?.sticker?.id, emoji, labelText)
+            }
+
+            is TdApi.MessageAnimatedEmoji -> MsgRow.Sticker(
+                m.id,
+                m.date,
+                m.isOutgoing,
+                label,
+                c.animatedEmoji?.sticker?.sticker?.id,
+                c.emoji.orEmpty(),
+                c.emoji?.takeIf { it.isNotBlank() } ?: text(R.string.message_emoji)
+            )
+
+            else -> MsgRow.Unsupported(m.id, m.date, m.isOutgoing, label, contentSummary(c))
         }
         requestSenderNameIfNeeded(m)
         return row
+    }
+
+    private fun contentSummary(c: TdApi.MessageContent): String = when (c) {
+        is TdApi.MessageAnimation -> bracket(text(R.string.message_animation), c.caption?.text)
+        is TdApi.MessageAudio -> bracket(text(R.string.message_audio), listOf(c.audio?.performer, c.audio?.title, c.caption?.text).firstNonBlank())
+        is TdApi.MessageDocument -> bracket(text(R.string.message_document), listOf(c.document?.fileName, c.caption?.text).firstNonBlank())
+        is TdApi.MessageVideoNote -> bracket(text(R.string.message_video_note), c.videoNote?.duration?.let { "${it}s" })
+        is TdApi.MessageDice -> listOf(c.emoji, text(R.string.message_dice), c.value.takeIf { it > 0 }?.toString()).filterNotNull().filter { it.isNotBlank() }.joinToString(" ")
+        is TdApi.MessageContact -> bracket(text(R.string.message_contact), listOf(c.contact?.firstName, c.contact?.lastName, c.contact?.phoneNumber).filterNotNull().filter { it.isNotBlank() }.joinToString(" "))
+        is TdApi.MessageLocation -> bracket(text(R.string.message_location), c.location?.let { "%.4f,%.4f".format(it.latitude, it.longitude) })
+        is TdApi.MessageVenue -> bracket(text(R.string.message_location), c.venue?.title)
+        is TdApi.MessagePoll -> bracket(text(R.string.message_poll), c.poll?.question?.text)
+        is TdApi.MessageCall -> text(R.string.message_call)
+        is TdApi.MessageInvoice -> bracket(text(R.string.message_invoice), c.productInfo?.title)
+        is TdApi.MessageGame -> bracket(text(R.string.message_game), c.game?.title)
+        is TdApi.MessageExpiredPhoto -> text(R.string.message_expired_photo)
+        is TdApi.MessageExpiredVideo -> text(R.string.message_expired_video)
+        is TdApi.MessageUnsupported -> text(R.string.message_unsupported)
+        is TdApi.MessageCustomServiceAction -> c.text.takeIf { it.isNotBlank() } ?: text(R.string.message_service)
+        is TdApi.MessageBasicGroupChatCreate -> bracket(text(R.string.message_service), c.title)
+        is TdApi.MessageSupergroupChatCreate -> bracket(text(R.string.message_service), c.title)
+        is TdApi.MessageChatChangeTitle -> bracket(text(R.string.message_service), c.title)
+        is TdApi.MessageChatAddMembers -> text(R.string.message_service)
+        is TdApi.MessageChatDeleteMember -> text(R.string.message_service)
+        is TdApi.MessageChatJoinByLink -> text(R.string.message_service)
+        is TdApi.MessageChatJoinByRequest -> text(R.string.message_service)
+        is TdApi.MessagePinMessage -> text(R.string.message_pinned)
+        is TdApi.MessageScreenshotTaken -> text(R.string.message_screenshot)
+        else -> bracket(humanizeMessageClass(c.javaClass.simpleName), null)
+    }
+
+    private fun bracket(kind: String, detail: String?): String =
+        if (detail.isNullOrBlank()) "[$kind]" else "[$kind] $detail"
+
+    private fun List<String?>.firstNonBlank(): String? = firstOrNull { !it.isNullOrBlank() }
+
+    private fun humanizeMessageClass(simpleName: String): String {
+        val raw = simpleName.removePrefix("Message").ifBlank { text(R.string.message_unsupported) }
+        return raw.replace(Regex("(?<=[a-z])(?=[A-Z])"), " ").lowercase()
     }
 
     private fun senderLabel(m: TdApi.Message): String {
@@ -221,6 +277,7 @@ class MessageRepo(
         is MsgRow.Photo -> copy(senderLabel = name)
         is MsgRow.Video -> copy(senderLabel = name)
         is MsgRow.Voice -> copy(senderLabel = name)
+        is MsgRow.Sticker -> copy(senderLabel = name)
         is MsgRow.Unsupported -> copy(senderLabel = name)
     }
 
@@ -233,6 +290,24 @@ class MessageRepo(
             R.string.message_photo -> "photo"
             R.string.message_video -> "video"
             R.string.message_voice -> "voice"
+            R.string.message_sticker -> "sticker"
+            R.string.message_emoji -> "emoji"
+            R.string.message_animation -> "GIF"
+            R.string.message_audio -> "audio"
+            R.string.message_document -> "file"
+            R.string.message_video_note -> "video note"
+            R.string.message_dice -> "dice"
+            R.string.message_contact -> "contact"
+            R.string.message_location -> "location"
+            R.string.message_poll -> "poll"
+            R.string.message_call -> "call"
+            R.string.message_invoice -> "invoice"
+            R.string.message_game -> "game"
+            R.string.message_service -> "service"
+            R.string.message_pinned -> "pinned message"
+            R.string.message_screenshot -> "screenshot taken"
+            R.string.message_expired_photo -> "expired photo"
+            R.string.message_expired_video -> "expired video"
             else -> ""
         }
 }
