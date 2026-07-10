@@ -75,6 +75,10 @@ class FullMessageFragment : Fragment() {
     }
 
     private fun closeReaderOnly() {
+        parentFragmentManager.setFragmentResult(
+            RESULT_FULL_MESSAGE_CLOSED,
+            Bundle().apply { putLong(ARG_CHAT_ID, requireArguments().getLong(ARG_CHAT_ID)) }
+        )
         // Pop only the full-message reader. Do not delegate to Activity back, because
         // that can also hit the restored ChatFragment's back handler and appear to
         // jump two levels back to the chat list on Rokid gesture broadcasts.
@@ -84,11 +88,14 @@ class FullMessageFragment : Fragment() {
     companion object {
         private const val ARG_TITLE = "title"
         private const val ARG_TEXT = "text"
+        private const val ARG_CHAT_ID = "chatId"
+        const val RESULT_FULL_MESSAGE_CLOSED = "full_message_closed"
 
-        fun newInstance(title: String, text: String): FullMessageFragment = FullMessageFragment().apply {
+        fun newInstance(title: String, text: String, chatId: Long): FullMessageFragment = FullMessageFragment().apply {
             arguments = Bundle().apply {
                 putString(ARG_TITLE, title)
                 putString(ARG_TEXT, text)
+                putLong(ARG_CHAT_ID, chatId)
             }
         }
     }

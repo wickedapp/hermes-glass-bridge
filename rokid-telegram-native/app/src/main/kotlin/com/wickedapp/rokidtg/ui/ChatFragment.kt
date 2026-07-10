@@ -74,6 +74,7 @@ class ChatFragment : Fragment() {
     private var pinButton: TextView? = null
     private var muteButton: TextView? = null
     private var selectedMessagePosition: Int = RecyclerView.NO_POSITION
+    private var restoreActiveMessagesAfterRecreate = false
     private var isLoadingOlderMessages = false
     private var requestedOlderLoad = false
     private var lastRenderedFirstMessageId: Long? = null
@@ -166,6 +167,10 @@ class ChatFragment : Fragment() {
                         }
                     }
                     lastRenderedFirstMessageId = rows.firstOrNull()?.id
+                    if (restoreActiveMessagesAfterRecreate && rows.isNotEmpty()) {
+                        restoreActiveMessagesAfterRecreate = false
+                        list.post { restoreActiveMessageWindow() }
+                    }
                 }
             }
         }
@@ -248,10 +253,31 @@ class ChatFragment : Fragment() {
 
         messageWindow?.setOnClickListener { enterFocusedWindow() }
         replyWindow?.setOnClickListener { enterFocusedWindow() }
+        parentFragmentManager.setFragmentResultListener(
+            FullMessageFragment.RESULT_FULL_MESSAGE_CLOSED,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            if (bundle.getLong("chatId", Long.MIN_VALUE) == chatId) {
+                restoreActiveMessagesAfterRecreate = false
+                view.post {
+                    if (adapter.itemCount > 0) restoreActiveMessageWindow()
+                    else restoreActiveMessagesAfterRecreate = true
+                }
+            }
+        }
 
-        // Default to a focus container, not the scrollable list. User must Enter the
-        // message window before Up/Down scrolls messages.
-        list.post { focusWindow(WindowSlot.MESSAGES) }
+        // Normal chat entry starts on the Message window selector. If this ChatFragment
+        // view is being recreated after popping a full-message reader, preserve the
+        // previous active message-list state so Back behaves like a simple previous page.
+        restoreActiveMessagesAfterRecreate = activeWindow == WindowSlot.MESSAGES
+        list.post {
+            if (restoreActiveMessagesAfterRecreate && adapter.itemCount > 0) {
+                restoreActiveMessagesAfterRecreate = false
+                restoreActiveMessageWindow()
+            } else if (!restoreActiveMessagesAfterRecreate) {
+                focusWindow(WindowSlot.MESSAGES)
+            }
+        }
 
         // Intercept back-press to collapse the reply panel (VOICE/TEXT/BT → MENU → DEFAULT)
         // before letting the system pop the fragment back to the chat list.
@@ -422,10 +448,12 @@ class ChatFragment : Fragment() {
     }
 
     private fun openFullMessage(row: MsgRow) {
+        focusedWindow = WindowSlot.MESSAGES
+        activeWindow = WindowSlot.MESSAGES
         parentFragmentManager.beginTransaction()
             .replace(
                 R.id.container,
-                FullMessageFragment.newInstance(getString(R.string.full_message_title), row.toPreviewText())
+                FullMessageFragment.newInstance(getString(R.string.full_message_title), row.toPreviewText(), chatId)
             )
             .addToBackStack("full_message")
             .commitAllowingStateLoss()
@@ -591,6 +619,25 @@ class ChatFragment : Fragment() {
                 modeHint?.text = getString(R.string.chat_hint_reply_active)
             }
         }
+    }
+
+    private fun restoreActiveMessageWindow() {
+        focusedWindow = WindowSlot.MESSAGES
+        activeWindow = WindowSlot.MESSAGES
+        val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
+        setHeaderControlsFocusable(false)
+        list.isFocusable = true
+        list.isFocusableInTouchMode = true
+        list.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        selectedMessagePosition = when {
+            selectedMessagePosition in 0 until adapter.itemCount -> selectedMessagePosition
+            adapter.itemCount > 0 -> adapter.itemCount - 1
+            else -> RecyclerView.NO_POSITION
+        }
+        if (selectedMessagePosition != RecyclerView.NO_POSITION) {
+            focusMessageAt(selectedMessagePosition, forceScroll = true)
+        }
+        modeHint?.text = getString(R.string.chat_hint_messages_active)
     }
 
     private fun togglePin() {
