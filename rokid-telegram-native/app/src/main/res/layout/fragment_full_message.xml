@@ -5,14 +5,14 @@
     android:background="#F0000000"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:padding="18dp">
+    android:padding="8px">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="@drawable/bg_bbs_popup"
-        android:padding="14dp">
+        android:padding="8px">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -22,9 +22,9 @@
 
             <ImageView
                 android:id="@+id/full_message_back"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:padding="6dp"
+                android:layout_width="28px"
+                android:layout_height="28px"
+                android:padding="4px"
                 android:src="@drawable/ic_back"
                 android:tint="#D0FFD0"
                 android:contentDescription="@string/back" />
@@ -37,10 +37,10 @@
                 android:ellipsize="end"
                 android:fontFamily="monospace"
                 android:maxLines="1"
-                android:paddingStart="10dp"
-                android:paddingEnd="4dp"
+                android:paddingStart="8px"
+                android:paddingEnd="4px"
                 android:textColor="#D0FFD0"
-                android:textSize="16sp"
+                android:textSize="14px"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -48,7 +48,7 @@
             android:id="@+id/full_message_scroll"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="6px"
             android:layout_weight="1"
             android:fadeScrollbars="false"
             android:fillViewport="true">
@@ -58,10 +58,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
-                android:lineSpacingExtra="4dp"
+                android:lineSpacingExtra="2px"
                 android:textColor="#E8FFE8"
                 android:textIsSelectable="false"
-                android:textSize="17sp" />
+                android:textSize="14px" />
         </ScrollView>
     </LinearLayout>
 </FrameLayout>

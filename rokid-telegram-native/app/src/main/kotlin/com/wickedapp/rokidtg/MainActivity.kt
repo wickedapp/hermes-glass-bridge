@@ -20,6 +20,7 @@ import com.wickedapp.rokidtg.ui.AuthFragment
 import com.wickedapp.rokidtg.ui.BannerHost
 import com.wickedapp.rokidtg.ui.ChatFragment
 import com.wickedapp.rokidtg.ui.ChatListFragment
+import com.wickedapp.rokidtg.ui.FullMessageFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
@@ -241,19 +242,35 @@ class MainActivity : AppCompatActivity(), GestureSink {
     override fun onGesture(g: SpriteBroadcast.Gesture): Boolean = when (g) {
         SpriteBroadcast.Gesture.SWIPE_FORWARD -> {
             val current = supportFragmentManager.findFragmentById(binding.container.id)
-            if (current is ChatFragment) current.onWindowGesture(g) else { focusNext(); true }
+            when (current) {
+                is ChatFragment -> current.onWindowGesture(g)
+                is FullMessageFragment -> current.onWindowGesture(g)
+                else -> { focusNext(); true }
+            }
         }
         SpriteBroadcast.Gesture.SWIPE_BACK    -> {
             val current = supportFragmentManager.findFragmentById(binding.container.id)
-            if (current is ChatFragment) current.onWindowGesture(g) else { focusPrev(); true }
+            when (current) {
+                is ChatFragment -> current.onWindowGesture(g)
+                is FullMessageFragment -> current.onWindowGesture(g)
+                else -> { focusPrev(); true }
+            }
         }
         SpriteBroadcast.Gesture.TAP, SpriteBroadcast.Gesture.BUTTON_CLICK, SpriteBroadcast.Gesture.TWO_TAP -> {
             val current = supportFragmentManager.findFragmentById(binding.container.id)
-            if (current is ChatFragment) current.onWindowGesture(SpriteBroadcast.Gesture.TAP) else { currentFocus?.performClick(); true }
+            when (current) {
+                is ChatFragment -> current.onWindowGesture(SpriteBroadcast.Gesture.TAP)
+                is FullMessageFragment -> current.onWindowGesture(g)
+                else -> { currentFocus?.performClick(); true }
+            }
         }
         SpriteBroadcast.Gesture.BACK          -> {
             val current = supportFragmentManager.findFragmentById(binding.container.id)
-            if (current is ChatFragment && current.onWindowGesture(g)) true else { onBackPressedDispatcher.onBackPressed(); true }
+            when {
+                current is ChatFragment && current.onWindowGesture(g) -> true
+                current is FullMessageFragment && current.onWindowGesture(g) -> true
+                else -> { onBackPressedDispatcher.onBackPressed(); true }
+            }
         }
         SpriteBroadcast.Gesture.TWO_DOUBLE_TAP -> {
             val f = supportFragmentManager.findFragmentById(binding.container.id)

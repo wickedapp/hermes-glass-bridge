@@ -10,9 +10,12 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.wickedapp.rokidtg.R
+import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
 
 /** Fullscreen BBS-style reader for long text/generic Telegram messages. */
 class FullMessageFragment : Fragment() {
+    private var scroll: ScrollView? = null
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
         inflater.inflate(R.layout.fragment_full_message, container, false)
 
@@ -24,21 +27,47 @@ class FullMessageFragment : Fragment() {
         view.findViewById<ImageView>(R.id.full_message_back).setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-        val scroll = view.findViewById<ScrollView>(R.id.full_message_scroll)
+        scroll = view.findViewById(R.id.full_message_scroll)
+        val scrollView = scroll ?: return
+        scrollView.isFocusableInTouchMode = true
+        scrollView.requestFocus()
         view.isFocusableInTouchMode = true
-        view.requestFocus()
         view.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
         view.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_DOWN -> { scroll.smoothScrollBy(0, 120); true }
-                KeyEvent.KEYCODE_DPAD_UP -> { scroll.smoothScrollBy(0, -120); true }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { scrollByPage(+1); true }
+                KeyEvent.KEYCODE_DPAD_UP -> { scrollByPage(-1); true }
                 KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BACK -> {
                     requireActivity().onBackPressedDispatcher.onBackPressed(); true
                 }
                 else -> false
             }
         }
+    }
+
+    override fun onDestroyView() {
+        scroll = null
+        super.onDestroyView()
+    }
+
+    fun onWindowGesture(g: SpriteBroadcast.Gesture): Boolean = when (g) {
+        SpriteBroadcast.Gesture.SWIPE_FORWARD -> { scrollByPage(+1); true }
+        SpriteBroadcast.Gesture.SWIPE_BACK -> { scrollByPage(-1); true }
+        SpriteBroadcast.Gesture.TAP,
+        SpriteBroadcast.Gesture.BUTTON_CLICK,
+        SpriteBroadcast.Gesture.TWO_TAP,
+        SpriteBroadcast.Gesture.BACK -> {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+            true
+        }
+        else -> false
+    }
+
+    private fun scrollByPage(direction: Int) {
+        val s = scroll ?: return
+        val delta = (s.height * 0.75f).toInt().coerceAtLeast(80)
+        s.smoothScrollBy(0, delta * direction)
     }
 
     companion object {
