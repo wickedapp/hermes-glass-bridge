@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
 
@@ -25,21 +26,21 @@ class FullMessageFragment : Fragment() {
         view.findViewById<TextView>(R.id.full_message_title).text = title
         view.findViewById<TextView>(R.id.full_message_text).text = text
         view.findViewById<ImageView>(R.id.full_message_back).setOnClickListener {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
+            closeReaderOnly()
         }
         scroll = view.findViewById(R.id.full_message_scroll)
         val scrollView = scroll ?: return
         scrollView.isFocusableInTouchMode = true
         scrollView.requestFocus()
         view.isFocusableInTouchMode = true
-        view.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
+        view.setOnClickListener { closeReaderOnly() }
         view.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> { scrollByPage(+1); true }
                 KeyEvent.KEYCODE_DPAD_UP -> { scrollByPage(-1); true }
                 KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BACK -> {
-                    requireActivity().onBackPressedDispatcher.onBackPressed(); true
+                    closeReaderOnly(); true
                 }
                 else -> false
             }
@@ -58,7 +59,7 @@ class FullMessageFragment : Fragment() {
         SpriteBroadcast.Gesture.BUTTON_CLICK,
         SpriteBroadcast.Gesture.TWO_TAP,
         SpriteBroadcast.Gesture.BACK -> {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
+            closeReaderOnly()
             true
         }
         else -> false
@@ -68,6 +69,13 @@ class FullMessageFragment : Fragment() {
         val s = scroll ?: return
         val delta = (s.height * 0.75f).toInt().coerceAtLeast(80)
         s.smoothScrollBy(0, delta * direction)
+    }
+
+    private fun closeReaderOnly() {
+        // Pop only the full-message reader. Do not delegate to Activity back, because
+        // that can also hit the restored ChatFragment's back handler and appear to
+        // jump two levels back to the chat list on Rokid gesture broadcasts.
+        parentFragmentManager.popBackStack("full_message", FragmentManager.POP_BACK_STACK_INCLUSIVE)
     }
 
     companion object {

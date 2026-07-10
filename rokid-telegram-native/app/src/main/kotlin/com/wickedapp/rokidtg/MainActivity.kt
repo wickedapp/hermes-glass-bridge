@@ -21,6 +21,7 @@ import com.wickedapp.rokidtg.ui.BannerHost
 import com.wickedapp.rokidtg.ui.ChatFragment
 import com.wickedapp.rokidtg.ui.ChatListFragment
 import com.wickedapp.rokidtg.ui.FullMessageFragment
+import com.wickedapp.rokidtg.ui.MediaViewerFragment
 import com.wickedapp.rokidtg.ui.input.GestureSink
 import com.wickedapp.rokidtg.ui.input.InputRouter
 import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
@@ -104,7 +105,11 @@ class MainActivity : AppCompatActivity(), GestureSink {
                     .replace(binding.container.id, AuthFragment.newInstance())
                     .commitAllowingStateLoss()
             }
-            !needAuth && state is TdApi.AuthorizationStateReady && current !is ChatListFragment && current !is ChatFragment -> {
+            !needAuth && state is TdApi.AuthorizationStateReady &&
+                    current !is ChatListFragment &&
+                    current !is ChatFragment &&
+                    current !is FullMessageFragment &&
+                    current !is MediaViewerFragment -> {
                 supportFragmentManager.beginTransaction()
                     .replace(binding.container.id, ChatListFragment.newInstance())
                     .commitAllowingStateLoss()
