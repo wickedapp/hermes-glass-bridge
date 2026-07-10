@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.activity.OnBackPressedCallback
@@ -82,9 +83,11 @@ class ChatFragment : Fragment() {
     private val previewHandler = Handler(Looper.getMainLooper())
     private var pendingPreviewRunnable: Runnable? = null
     private var messagePreviewPopup: View? = null
+    private var messagePreviewScroll: ScrollView? = null
     private var messagePreviewText: TextView? = null
     private var messagePreviewImage: ImageView? = null
     private var messagePreviewVideo: VideoView? = null
+    private var previewAutoScrollRunnable: Runnable? = null
     private var previewToken = 0
 
     /** Single-slot player for incoming voice notes; null until first use. */
@@ -114,6 +117,7 @@ class ChatFragment : Fragment() {
         messageWindow = view.findViewById(R.id.message_window)
         replyWindow = view.findViewById(R.id.reply_window)
         messagePreviewPopup = view.findViewById(R.id.message_preview_popup)
+        messagePreviewScroll = view.findViewById(R.id.message_preview_scroll)
         messagePreviewText = view.findViewById(R.id.message_preview_text)
         messagePreviewImage = view.findViewById(R.id.message_preview_image)
         messagePreviewVideo = view.findViewById(R.id.message_preview_video)
@@ -834,6 +838,11 @@ class ChatFragment : Fragment() {
     private fun showMessagePreview(position: Int) {
         val row = adapter.rowAt(position) ?: return
         val token = ++previewToken
+        stopPreviewAutoScroll()
+        messagePreviewScroll?.apply {
+            visibility = View.VISIBLE
+            scrollTo(0, 0)
+        }
         messagePreviewText?.apply {
             visibility = View.VISIBLE
             text = row.toPreviewText()
@@ -844,9 +853,12 @@ class ChatFragment : Fragment() {
             visibility = View.GONE
         }
         messagePreviewPopup?.visibility = View.VISIBLE
+        startPreviewAutoScrollIfNeeded(token, position)
         when (row) {
             is MsgRow.Photo -> downloadFile(row.fileId, "PhotoPreview") { file ->
                 if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                    stopPreviewAutoScroll()
+                    messagePreviewScroll?.visibility = View.GONE
                     messagePreviewText?.visibility = View.GONE
                     messagePreviewImage?.apply {
                         setImageURI(Uri.fromFile(file))
@@ -856,6 +868,8 @@ class ChatFragment : Fragment() {
             }
             is MsgRow.Video -> downloadFile(row.fileId, "VideoPreview") { file ->
                 if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                    stopPreviewAutoScroll()
+                    messagePreviewScroll?.visibility = View.GONE
                     messagePreviewText?.visibility = View.GONE
                     messagePreviewVideo?.apply {
                         visibility = View.VISIBLE
@@ -870,6 +884,8 @@ class ChatFragment : Fragment() {
             is MsgRow.Sticker -> row.fileId?.let { fileId ->
                 downloadFile(fileId, "StickerPreview") { file ->
                     if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                        stopPreviewAutoScroll()
+                        messagePreviewScroll?.visibility = View.GONE
                         messagePreviewText?.visibility = View.GONE
                         messagePreviewImage?.apply {
                             setImageURI(Uri.fromFile(file))
@@ -887,11 +903,39 @@ class ChatFragment : Fragment() {
         }
     }
 
+    private fun startPreviewAutoScrollIfNeeded(token: Int, position: Int) {
+        val scrollView = messagePreviewScroll ?: return
+        val textView = messagePreviewText ?: return
+        scrollView.postDelayed({
+            if (previewToken != token || activeWindow != WindowSlot.MESSAGES || selectedMessagePosition != position) return@postDelayed
+            if (messagePreviewPopup?.visibility != View.VISIBLE || scrollView.visibility != View.VISIBLE) return@postDelayed
+            val maxScroll = (textView.height - scrollView.height).coerceAtLeast(0)
+            if (maxScroll <= 0) return@postDelayed
+            previewAutoScrollRunnable = object : Runnable {
+                override fun run() {
+                    if (previewToken != token || activeWindow != WindowSlot.MESSAGES || selectedMessagePosition != position) return
+                    if (messagePreviewPopup?.visibility != View.VISIBLE || scrollView.visibility != View.VISIBLE) return
+                    val max = (textView.height - scrollView.height).coerceAtLeast(0)
+                    if (max <= 0 || scrollView.scrollY >= max) return
+                    scrollView.scrollBy(0, 2)
+                    previewHandler.postDelayed(this, 90L)
+                }
+            }.also { previewHandler.postDelayed(it, 650L) }
+        }, 300L)
+    }
+
+    private fun stopPreviewAutoScroll() {
+        previewAutoScrollRunnable?.let { previewHandler.removeCallbacks(it) }
+        previewAutoScrollRunnable = null
+    }
+
     private fun hideMessagePreview() {
         pendingPreviewRunnable?.let { previewHandler.removeCallbacks(it) }
         pendingPreviewRunnable = null
+        stopPreviewAutoScroll()
         previewToken += 1
         messagePreviewVideo?.stopPlayback()
+        messagePreviewScroll?.scrollTo(0, 0)
         messagePreviewPopup?.visibility = View.GONE
     }
 
