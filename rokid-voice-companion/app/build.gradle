@@ -1,0 +1,21 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.wickedapp.rokidvoicecompanion'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.wickedapp.rokidvoicecompanion'
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0-cxr-asr-poc'
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+    }
+}
+
+dependencies {
+    implementation 'com.rokid.cxr:client-m:1.2.2'
+    implementation files('libs/client-l-1.0.3-stripped.aar')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.22'
+}

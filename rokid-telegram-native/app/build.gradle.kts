@@ -57,6 +57,7 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     implementation("org.java-websocket:Java-WebSocket:1.5.4")
+    implementation("com.rokid.cxr:cxr-service-bridge:1.0")
 
     // Concentus: pure-Java Opus codec for voice note encoding (no NDK required).
     // Committed as app/libs/concentus.jar (from lostromb/concentus@6c2328dc19) for portability.

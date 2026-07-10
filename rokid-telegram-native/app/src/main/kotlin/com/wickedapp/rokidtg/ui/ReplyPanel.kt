@@ -19,11 +19,16 @@ import androidx.annotation.RequiresPermission
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.TdClientFacade
 import com.wickedapp.rokidtg.voice.AudioCapturer
+import com.wickedapp.rokidtg.voice.DictationError
+import com.wickedapp.rokidtg.voice.DictationProvider
+import com.wickedapp.rokidtg.voice.DictationSession
+import com.wickedapp.rokidtg.voice.PhoneCxrDictationProvider
 import com.wickedapp.rokidtg.voice.VoiceHelperBridge
 import com.wickedapp.rokidtg.voice.VoiceNoteEncoder
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 import java.io.File
+import java.util.UUID
 
 /**
  * Bottom reply state machine:
@@ -42,6 +47,7 @@ class ReplyPanel(
     private val chatId: Long,
     private val bridge: VoiceHelperBridge,
     private val onSendVoiceNote: (File, Int, ByteArray, (Boolean) -> Unit) -> Unit,
+    private val dictationProvider: DictationProvider = PhoneCxrDictationProvider(),
 ) {
     enum class State { DEFAULT, MENU, VOICE, TEXT, BT }
 
@@ -89,10 +95,11 @@ class ReplyPanel(
         }
     }
 
-    // Voice-to-text (in-page Android speech recognizer)
+    // Voice-to-text / Dictate
     private var textActive = false
     private var textFinal: String? = null
     private var speechRecognizer: SpeechRecognizer? = null
+    private var dictationSessionId: String? = null
 
     init {
         btnReply.setOnClickListener { go(State.MENU) }
@@ -310,10 +317,55 @@ class ReplyPanel(
         if (!forceSpriteHelper && androidRecognizerAvailable) {
             startInlineSpeechRecognizer()
         } else {
-            Timber.tag("ReplyPanel").w("Using hidden Sprite helper for Dictate")
-            startBridge()
-            launchHiddenHelper()
+            Timber.tag("ReplyPanel").i("Using phone CXR companion for Dictate")
+            startPhoneDictation()
         }
+    }
+
+    private fun startPhoneDictation() {
+        val session = DictationSession(
+            sessionId = UUID.randomUUID().toString(),
+            chatId = chatId,
+            lang = "zh-CN",
+        )
+        dictationSessionId = session.sessionId
+        dictationProvider.start(session, object : DictationProvider.Callback {
+            override fun onReady() {
+                root.post {
+                    if (!textActive || dictationSessionId != session.sessionId) return@post
+                    textTranscript.text = ctx.getString(R.string.composer_listening)
+                    textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                }
+            }
+
+            override fun onPartial(text: String) {
+                root.post {
+                    if (!textActive || dictationSessionId != session.sessionId) return@post
+                    textTranscript.text = text
+                    textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                }
+            }
+
+            override fun onFinal(text: String) {
+                root.post {
+                    if (!textActive || dictationSessionId != session.sessionId) return@post
+                    dictationSessionId = null
+                    showFinalTranscript(text)
+                }
+            }
+
+            override fun onError(error: DictationError) {
+                Timber.tag("ReplyPanel").w("phone dictation error=%s msg=%s; falling back to Sprite helper", error.code, error.message)
+                root.post {
+                    if (!textActive || dictationSessionId != session.sessionId) return@post
+                    dictationSessionId = null
+                    textTranscript.text = ctx.getString(R.string.composer_listening)
+                    textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                    startBridge()
+                    launchHiddenHelper()
+                }
+            }
+        })
     }
 
     private fun isRokidDevice(): Boolean {
@@ -489,6 +541,8 @@ class ReplyPanel(
         sendTextMessage(text)
         textActive = false
         textFinal = null
+        dictationSessionId?.let { dictationProvider.cancel(it) }
+        dictationSessionId = null
         stopInlineSpeechRecognizer()
         bridge.cancel()
         go(State.DEFAULT)
@@ -497,6 +551,8 @@ class ReplyPanel(
     private fun cancelText() {
         textActive = false
         textFinal = null
+        dictationSessionId?.let { dictationProvider.cancel(it) }
+        dictationSessionId = null
         stopInlineSpeechRecognizer()
         bridge.cancel()
         go(State.MENU)
