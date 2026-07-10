@@ -1,89 +1,129 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="126px"
         android:orientation="vertical"
-        android:gravity="bottom"
-        android:paddingStart="10px"
-        android:paddingEnd="10px"
-        android:paddingBottom="4px">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000">
 
-        <include
-            android:id="@+id/header"
-            layout="@layout/view_header" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="126px"
+            android:orientation="vertical"
+            android:gravity="bottom"
+            android:paddingStart="10px"
+            android:paddingEnd="10px"
+            android:paddingBottom="4px">
+
+            <include
+                android:id="@+id/header"
+                layout="@layout/view_header" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="TIME  NAME     MESSAGE"
+                android:textColor="@color/primary_50"
+                android:textSize="12px"
+                android:fontFamily="monospace"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/mode_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/chat_hint_focus_default"
+                android:textColor="@color/primary_50"
+                android:textSize="12px"
+                android:fontFamily="monospace"
+                android:singleLine="true" />
+        </LinearLayout>
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="TIME  NAME     MESSAGE"
-            android:textColor="@color/primary_50"
-            android:textSize="12px"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
+            android:id="@+id/peer"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/mode_hint"
+        <FrameLayout
+            android:id="@+id/message_window"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/chat_hint_focus_default"
-            android:textColor="@color/primary_50"
-            android:textSize="12px"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
+            android:layout_height="396px"
+            android:background="#000000"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true"
+            android:paddingStart="8px"
+            android:paddingEnd="8px"
+            android:paddingTop="4px"
+            android:paddingBottom="4px">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/messages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#000000"
+                android:clipToPadding="false"
+                android:scrollbars="none"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:descendantFocusability="afterDescendants" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/reply_window"
+            android:layout_width="match_parent"
+            android:layout_height="118px"
+            android:background="#000000"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true"
+            android:paddingStart="12px"
+            android:paddingEnd="12px"
+            android:paddingTop="6px"
+            android:paddingBottom="6px">
+
+            <include
+                layout="@layout/overlay_reply"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </FrameLayout>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/peer"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
+    <LinearLayout
+        android:id="@+id/message_preview_popup"
+        android:layout_width="390px"
+        android:layout_height="230px"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:background="@drawable/bg_bbs_popup"
+        android:visibility="gone"
+        android:clickable="false"
+        android:focusable="false">
 
-    <FrameLayout
-        android:id="@+id/message_window"
-        android:layout_width="match_parent"
-        android:layout_height="396px"
-        android:background="#000000"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:clickable="true"
-        android:paddingStart="8px"
-        android:paddingEnd="8px"
-        android:paddingTop="4px"
-        android:paddingBottom="4px">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/messages"
+        <TextView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#000000"
-            android:clipToPadding="false"
-            android:scrollbars="none"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
-            android:descendantFocusability="afterDescendants" />
-    </FrameLayout>
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:text="[ FULL MESSAGE ]"
+            android:textColor="@color/primary_80"
+            android:textSize="13px"
+            android:singleLine="true" />
 
-    <FrameLayout
-        android:id="@+id/reply_window"
-        android:layout_width="match_parent"
-        android:layout_height="118px"
-        android:background="#000000"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:clickable="true"
-        android:paddingStart="12px"
-        android:paddingEnd="12px"
-        android:paddingTop="6px"
-        android:paddingBottom="6px">
-
-        <include
-            layout="@layout/overlay_reply"
+        <TextView
+            android:id="@+id/message_preview_text"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-    </FrameLayout>
-</LinearLayout>
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="6px"
+            android:fontFamily="monospace"
+            android:textColor="@color/primary"
+            android:textSize="15px"
+            android:lineSpacingExtra="2px"
+            android:maxLines="8"
+            android:ellipsize="end" />
+    </LinearLayout>
+</FrameLayout>

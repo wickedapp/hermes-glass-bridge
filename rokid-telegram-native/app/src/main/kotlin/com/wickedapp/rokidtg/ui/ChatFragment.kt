@@ -1,6 +1,8 @@
 package com.wickedapp.rokidtg.ui
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -73,6 +75,10 @@ class ChatFragment : Fragment() {
     private var requestedOlderLoad = false
     private var lastRenderedFirstMessageId: Long? = null
     private var didInitialScrollToNewest = false
+    private val previewHandler = Handler(Looper.getMainLooper())
+    private var pendingPreviewRunnable: Runnable? = null
+    private var messagePreviewPopup: View? = null
+    private var messagePreviewText: TextView? = null
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -100,6 +106,8 @@ class ChatFragment : Fragment() {
         modeHint = view.findViewById(R.id.mode_hint)
         messageWindow = view.findViewById(R.id.message_window)
         replyWindow = view.findViewById(R.id.reply_window)
+        messagePreviewPopup = view.findViewById(R.id.message_preview_popup)
+        messagePreviewText = view.findViewById(R.id.message_preview_text)
 
         val list = view.findViewById<RecyclerView>(R.id.messages)
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
@@ -224,6 +232,7 @@ class ChatFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        hideMessagePreview()
         // Signal TDLib the chat is no longer on-screen so it can throttle updates.
         td?.send(TdApi.CloseChat(chatId)) {}
         // Release MediaPlayerPool if it was created to avoid ExoPlayer leaks.
@@ -416,6 +425,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun focusWindow(slot: WindowSlot) {
+        hideMessagePreview()
         focusedWindow = slot
         activeWindow = null
         view?.findViewById<RecyclerView>(R.id.messages)?.apply {
@@ -444,6 +454,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun enterFocusedWindow() {
+        hideMessagePreview()
         when (focusedWindow) {
             WindowSlot.HEADER -> performHeaderAction()
             WindowSlot.MESSAGES -> {
@@ -523,6 +534,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun exitActiveWindow() {
+        hideMessagePreview()
         if (activeWindow == WindowSlot.REPLY) replyPanel?.onBack()
         if (activeWindow == WindowSlot.MESSAGES) {
             view?.findViewById<RecyclerView>(R.id.messages)?.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
@@ -575,6 +587,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun moveFocusInsideMessages(delta: Int) {
+        hideMessagePreview()
         val count = adapter.itemCount
         if (count <= 0) return
         if (selectedMessagePosition == RecyclerView.NO_POSITION) {
@@ -626,6 +639,7 @@ class ChatFragment : Fragment() {
     }
 
     private fun focusMessageAt(position: Int, forceScroll: Boolean = false) {
+        hideMessagePreview()
         val list = view?.findViewById<RecyclerView>(R.id.messages) ?: return
         val target = position.coerceIn(0, (adapter.itemCount - 1).coerceAtLeast(0))
         selectedMessagePosition = target
@@ -641,8 +655,31 @@ class ChatFragment : Fragment() {
         if (!visibleNow || forceScroll) {
             list.smoothScrollToPosition(target)
             list.postDelayed({ requestVisible() }, 120)
-            list.postDelayed({ requestVisible() }, 260)
+            list.postDelayed({ if (requestVisible()) scheduleMessagePreview(target) }, 260)
+        } else {
+            scheduleMessagePreview(target)
         }
+    }
+
+    private fun scheduleMessagePreview(position: Int) {
+        pendingPreviewRunnable?.let { previewHandler.removeCallbacks(it) }
+        pendingPreviewRunnable = Runnable {
+            if (activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                showMessagePreview(position)
+            }
+        }.also { previewHandler.postDelayed(it, 1500L) }
+    }
+
+    private fun showMessagePreview(position: Int) {
+        val row = adapter.rowAt(position) ?: return
+        messagePreviewText?.text = row.toPreviewText()
+        messagePreviewPopup?.visibility = View.VISIBLE
+    }
+
+    private fun hideMessagePreview() {
+        pendingPreviewRunnable?.let { previewHandler.removeCallbacks(it) }
+        pendingPreviewRunnable = null
+        messagePreviewPopup?.visibility = View.GONE
     }
 
     private fun findFocusableMessageChild(root: View): View? {
@@ -748,6 +785,8 @@ class MsgAdapter(
     override fun getItemId(position: Int): Long = rows[position].id
 
     override fun getItemCount(): Int = rows.size
+
+    fun rowAt(position: Int): MsgRow? = rows.getOrNull(position)
 
     override fun getItemViewType(position: Int): Int = when (rows[position]) {
         is MsgRow.Photo       -> VT_PHOTO
@@ -857,6 +896,17 @@ class MsgAdapter(
 private fun formatBbsMessageTime(dateSeconds: Int): String {
     if (dateSeconds <= 0) return "--:--"
     return BBS_MESSAGE_TIME_FORMAT.get()!!.format(Date(dateSeconds * 1000L))
+}
+
+private fun MsgRow.toPreviewText(): String {
+    val body = when (this) {
+        is MsgRow.Text -> text
+        is MsgRow.Photo -> "[photo] ${width}x${height}"
+        is MsgRow.Video -> "[video] ${durationS}s"
+        is MsgRow.Voice -> "[voice] ${durationS}s"
+        is MsgRow.Unsupported -> "[$label]"
+    }
+    return "${formatBbsMessageTime(date)}  ${senderLabel}\n$body"
 }
 
 private val BBS_MESSAGE_TIME_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
