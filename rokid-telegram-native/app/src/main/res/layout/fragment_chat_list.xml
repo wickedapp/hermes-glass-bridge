@@ -2,7 +2,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg">
+    android:background="#000000">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -51,6 +51,7 @@
             android:id="@+id/list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="#000000"
             android:clipToPadding="false"
             android:scrollbars="none"
             android:focusable="true"

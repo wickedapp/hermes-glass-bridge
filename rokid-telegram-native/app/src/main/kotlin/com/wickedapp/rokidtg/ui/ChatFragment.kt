@@ -151,10 +151,10 @@ class ChatFragment : Fragment() {
                 }
             }
         }
-        // Lazy loading: start with only the latest 5 messages; prepend 5 older
-        // messages only when active message selection moves above the oldest loaded row.
+        // BBS density: load enough recent messages to fill the compact terminal viewport;
+        // prepend older batches only when active message selection moves above the oldest loaded row.
         if (r.messages.value.isEmpty()) {
-            viewLifecycleOwner.lifecycleScope.launch { r.loadInitial(limit = 5) }
+            viewLifecycleOwner.lifecycleScope.launch { r.loadHistory() }
         }
 
         // Wire the reply state machine. Captures the chatId locally for the OGG-send callback
@@ -587,7 +587,7 @@ class ChatFragment : Fragment() {
             Timber.tag("ChatFragment").i("olderLoad start selected=%d size=%d", selectedMessagePosition, count)
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    val inserted = repo?.loadOlder(limit = 5) ?: 0
+                    val inserted = repo?.loadOlder() ?: 0
                     if (inserted <= 0) {
                         requestedOlderLoad = false
                         selectedMessagePosition = 0

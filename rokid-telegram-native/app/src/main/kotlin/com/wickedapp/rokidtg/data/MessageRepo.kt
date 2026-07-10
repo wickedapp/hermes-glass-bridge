@@ -42,10 +42,10 @@ class MessageRepo(
      * batches only when the user moves upward past the oldest loaded row.
      */
     suspend fun loadHistory() {
-        loadInitial(limit = 5)
+        loadInitial(limit = INITIAL_BBS_HISTORY_LIMIT)
     }
 
-    suspend fun loadInitial(limit: Int = 5): Int {
+    suspend fun loadInitial(limit: Int = INITIAL_BBS_HISTORY_LIMIT): Int {
         var received = load(fromMessageId = 0L, limit = limit)
         if (received < limit) {
             // First GetChatHistory after OpenChat often returns only cached lastMessage.
@@ -57,7 +57,7 @@ class MessageRepo(
     }
 
     /** Prepend a small batch older than the oldest cached message. */
-    suspend fun loadOlder(limit: Int = 5): Int {
+    suspend fun loadOlder(limit: Int = OLDER_BBS_HISTORY_LIMIT): Int {
         return loadOlderInternal(limit = limit)
     }
 
@@ -236,6 +236,9 @@ class MessageRepo(
             else -> ""
         }
 }
+
+private const val INITIAL_BBS_HISTORY_LIMIT = 14
+private const val OLDER_BBS_HISTORY_LIMIT = 10
 
 /** Returns 0 if the map is empty (GetChatHistory interprets 0 as "from newest"). */
 private fun TreeMap<Long, *>.firstKey2(): Long = if (isEmpty()) 0L else firstKey()
