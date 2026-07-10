@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Rokid TG</string>
+    <string name="back">返回</string>
+    <string name="full_message_title">完整消息</string>
     <string name="placeholder_scaffold">Rokid TG — 脚手架</string>
 
     <string name="chat_list_hint">↑↓ 选择聊天 · Enter 打开 · Back 系统返回</string>

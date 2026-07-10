@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Rokid TG</string>
+    <string name="back">Back</string>
+    <string name="full_message_title">Full message</string>
     <string name="placeholder_scaffold">Rokid TG — scaffolding</string>
 
     <string name="chat_list_hint">↑↓ select chat · Enter open · Back system return</string>

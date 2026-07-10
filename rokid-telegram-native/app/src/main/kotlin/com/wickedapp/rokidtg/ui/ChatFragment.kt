@@ -116,6 +116,7 @@ class ChatFragment : Fragment() {
         messagePreviewText = view.findViewById(R.id.message_preview_text)
         messagePreviewImage = view.findViewById(R.id.message_preview_image)
         messagePreviewVideo = view.findViewById(R.id.message_preview_video)
+        messagePreviewPopup?.setOnClickListener { openSelectedMessage() }
 
         val list = view.findViewById<RecyclerView>(R.id.messages)
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
@@ -125,6 +126,7 @@ class ChatFragment : Fragment() {
             onOpenPhoto = { fileId -> downloadAndView(fileId, MediaViewerFragment.Kind.PHOTO) },
             onOpenVideo = { fileId -> downloadAndView(fileId, MediaViewerFragment.Kind.VIDEO) },
             onPlayVoice = { fileId -> downloadAndPlay(fileId) },
+            onOpenFull = { row -> openFullMessage(row) },
         )
         list.adapter = adapter
 
@@ -399,6 +401,36 @@ class ChatFragment : Fragment() {
             .commitAllowingStateLoss()
     }
 
+    private fun openSelectedMessage() {
+        val list = view?.findViewById<RecyclerView>(R.id.messages)
+        val position = when {
+            selectedMessagePosition != RecyclerView.NO_POSITION -> selectedMessagePosition
+            list != null -> focusedMessageAdapterPosition(list)
+            else -> RecyclerView.NO_POSITION
+        }
+        val row = adapter.rowAt(position) ?: return
+        hideMessagePreview()
+        when (row) {
+            is MsgRow.Photo -> downloadAndView(row.fileId, MediaViewerFragment.Kind.PHOTO)
+            is MsgRow.Video -> downloadAndView(row.fileId, MediaViewerFragment.Kind.VIDEO)
+            is MsgRow.Voice -> downloadAndPlay(row.fileId)
+            is MsgRow.Sticker -> row.fileId?.let { downloadAndView(it, MediaViewerFragment.Kind.PHOTO) }
+                ?: openFullMessage(row)
+            is MsgRow.Text,
+            is MsgRow.Unsupported -> openFullMessage(row)
+        }
+    }
+
+    private fun openFullMessage(row: MsgRow) {
+        parentFragmentManager.beginTransaction()
+            .replace(
+                R.id.container,
+                FullMessageFragment.newInstance(getString(R.string.full_message_title), row.toPreviewText())
+            )
+            .addToBackStack("full_message")
+            .commitAllowingStateLoss()
+    }
+
     // -------------------------------------------------------------------------
     // Gesture / key forwarding
     // -------------------------------------------------------------------------
@@ -451,6 +483,8 @@ class ChatFragment : Fragment() {
                     performHeaderAction()
                 } else if (activeWindow == null) {
                     enterFocusedWindow()
+                } else if (activeWindow == WindowSlot.MESSAGES) {
+                    openSelectedMessage()
                 } else {
                     focused?.performClick()
                 }
@@ -889,6 +923,7 @@ class MsgAdapter(
     private val onOpenPhoto: (Int) -> Unit = {},
     private val onOpenVideo: (Int) -> Unit = {},
     private val onPlayVoice: (Int) -> Unit = {},
+    private val onOpenFull: (MsgRow) -> Unit = {},
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val rows = mutableListOf<MsgRow>()
@@ -942,7 +977,7 @@ class MsgAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val row = rows[position]
         when (holder) {
-            is TextVH  -> holder.bind(row)
+            is TextVH  -> holder.bind(row, onOpenFull)
             is PhotoVH -> holder.bind(row as MsgRow.Photo, onOpenPhoto)
             is VideoVH -> holder.bind(row as MsgRow.Video, onOpenVideo)
             is VoiceVH -> holder.bind(row as MsgRow.Voice, onPlayVoice)
@@ -957,7 +992,7 @@ class MsgAdapter(
         private val sender: android.widget.TextView = v.findViewById(R.id.sender)
         private val txt: android.widget.TextView = v.findViewById(R.id.text)
 
-        fun bind(row: MsgRow) {
+        fun bind(row: MsgRow, onTap: (MsgRow) -> Unit) {
             val me = itemView.context.getString(R.string.sender_me)
             time.text = formatBbsMessageTime(row.date)
             sender.text = if (row.isOutgoing) me else row.senderLabel
@@ -968,6 +1003,7 @@ class MsgAdapter(
                 is MsgRow.Unsupported -> "(${row.label})"
                 else                  -> "(${itemView.context.getString(R.string.message_unsupported)})"
             }
+            bubble.setOnClickListener { onTap(row) }
         }
     }
 
