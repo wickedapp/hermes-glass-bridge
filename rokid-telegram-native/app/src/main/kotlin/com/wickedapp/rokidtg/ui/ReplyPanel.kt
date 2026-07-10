@@ -41,7 +41,7 @@ class ReplyPanel(
     private val td: TdClientFacade,
     private val chatId: Long,
     private val bridge: VoiceHelperBridge,
-    private val onSendVoiceNote: (File, Int, ByteArray) -> Unit,
+    private val onSendVoiceNote: (File, Int, ByteArray, (Boolean) -> Unit) -> Unit,
 ) {
     enum class State { DEFAULT, MENU, VOICE, TEXT, BT }
 
@@ -266,8 +266,15 @@ class ReplyPanel(
         val (dur, wave) = enc.finishWithDuration()
         val file = outFile ?: run { go(State.DEFAULT); return }
         outFile = null
-        onSendVoiceNote(file, dur, wave)
-        go(State.DEFAULT)
+        voiceStatus.text = "sending…"
+        onSendVoiceNote(file, dur, wave) { ok ->
+            root.post {
+                if (ok) go(State.DEFAULT) else {
+                    BannerHost.show(ctx.getString(R.string.voice_send_failed), BannerHost.Kind.WARN)
+                    go(State.MENU)
+                }
+            }
+        }
     }
 
     private fun cancelVoice() {

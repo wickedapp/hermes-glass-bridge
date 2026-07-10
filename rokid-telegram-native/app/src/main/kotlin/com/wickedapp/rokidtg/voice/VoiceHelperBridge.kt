@@ -80,7 +80,7 @@ class VoiceHelperBridge(port: Int = 0) {
         readyTimer = timers.schedule({
             listener.get()?.onTimeout("ready")
             stopServer()
-        }, 10_000, TimeUnit.MILLISECONDS)
+        }, 20_000, TimeUnit.MILLISECONDS)
     }
 
     /** Cancel current session and stop the WebSocket server. */

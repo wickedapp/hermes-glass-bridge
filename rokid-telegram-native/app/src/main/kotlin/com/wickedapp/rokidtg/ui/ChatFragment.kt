@@ -3,12 +3,14 @@ package com.wickedapp.rokidtg.ui
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.net.Uri
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.VideoView
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +27,7 @@ import com.wickedapp.rokidtg.ui.input.SpriteBroadcast
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import timber.log.Timber
 import java.io.File
@@ -79,6 +82,9 @@ class ChatFragment : Fragment() {
     private var pendingPreviewRunnable: Runnable? = null
     private var messagePreviewPopup: View? = null
     private var messagePreviewText: TextView? = null
+    private var messagePreviewImage: ImageView? = null
+    private var messagePreviewVideo: VideoView? = null
+    private var previewToken = 0
 
     /** Single-slot player for incoming voice notes; null until first use. */
     private var playerPool: MediaPlayerPool? = null
@@ -108,6 +114,8 @@ class ChatFragment : Fragment() {
         replyWindow = view.findViewById(R.id.reply_window)
         messagePreviewPopup = view.findViewById(R.id.message_preview_popup)
         messagePreviewText = view.findViewById(R.id.message_preview_text)
+        messagePreviewImage = view.findViewById(R.id.message_preview_image)
+        messagePreviewVideo = view.findViewById(R.id.message_preview_video)
 
         val list = view.findViewById<RecyclerView>(R.id.messages)
         list.layoutManager = LinearLayoutManager(requireContext()).apply {
@@ -170,21 +178,68 @@ class ChatFragment : Fragment() {
         val tdClient = td ?: return
         val bridge = (requireActivity() as? MainActivity)?.getOrCreateBridge()
         if (bridge != null) {
-            val sendVoiceNote: (java.io.File, Int, ByteArray) -> Unit = { file, dur, wave ->
-                tdClient.send(TdApi.SendMessage().apply {
+            val sendVoiceNote: (java.io.File, Int, ByteArray, (Boolean) -> Unit) -> Unit = { file, dur, wave, done ->
+                Timber.tag("VoiceNote").i(
+                    "sendVoiceNote file=%s bytes=%d dur=%d waveform=%d",
+                    file.absolutePath,
+                    file.length(),
+                    dur,
+                    wave.size
+                )
+                if (!file.exists() || file.length() <= 128L) {
+                    Timber.tag("VoiceNote").e("sendVoiceNote aborted: invalid local ogg file")
+                    done(false)
+                } else {
+                    tdClient.send(TdApi.SendMessage().apply {
                     this.chatId = this@ChatFragment.chatId
                     inputMessageContent = TdApi.InputMessageVoiceNote().apply {
                         voiceNote = TdApi.InputFileLocal(file.absolutePath)
-                        duration = dur
-                        waveform = wave
+                        duration = dur.coerceAtLeast(1)
+                        waveform = wave.take(100).toByteArray()
                         caption = null
                         selfDestructType = null
                     }
                 }) { result ->
-                    if (result is TdApi.Error) {
-                        Timber.tag("VoiceNote").e("sendVoiceNote failed: %d %s", result.code, result.message)
+                    when (result) {
+                        is TdApi.Error -> {
+                            Timber.tag("VoiceNote").e("sendVoiceNote failed: %d %s", result.code, result.message)
+                            done(false)
+                        }
+                        is TdApi.Message -> {
+                            Timber.tag("VoiceNote").i("sendVoiceNote accepted localMessageId=%d state=%s", result.id, result.sendingState?.javaClass?.simpleName ?: "none")
+                            viewLifecycleOwner.lifecycleScope.launch {
+                                val confirmed = withTimeoutOrNull(20_000L) {
+                                    tdClient.updates.first { update ->
+                                        when (update) {
+                                            is TdApi.UpdateMessageSendSucceeded -> update.oldMessageId == result.id && update.message.chatId == this@ChatFragment.chatId
+                                            is TdApi.UpdateMessageSendFailed -> update.oldMessageId == result.id && update.message.chatId == this@ChatFragment.chatId
+                                            else -> false
+                                        }
+                                    }
+                                }
+                                when (confirmed) {
+                                    is TdApi.UpdateMessageSendSucceeded -> {
+                                        Timber.tag("VoiceNote").i("sendVoiceNote confirmed remoteMessageId=%d", confirmed.message.id)
+                                        done(true)
+                                    }
+                                    is TdApi.UpdateMessageSendFailed -> {
+                                        Timber.tag("VoiceNote").e("sendVoiceNote send failed old=%d error=%d %s", confirmed.oldMessageId, confirmed.error.code, confirmed.error.message)
+                                        done(false)
+                                    }
+                                    else -> {
+                                        Timber.tag("VoiceNote").w("sendVoiceNote not confirmed within timeout localMessageId=%d", result.id)
+                                        done(false)
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            Timber.tag("VoiceNote").w("sendVoiceNote unexpected result: %s", result)
+                            done(false)
+                        }
                     }
                 }
+            }
             }
             replyPanel = ReplyPanel(view, tdClient, chatId, bridge, sendVoiceNote)
         }
@@ -306,6 +361,31 @@ class ChatFragment : Fragment() {
                     updateJob.cancel()
                     viewLifecycleOwner.lifecycleScope.launch {
                         playerPool().playVoice(File(result.local.path))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun downloadFile(fileId: Int, tag: String, onComplete: (File) -> Unit) {
+        val tdClient = td ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val updateJob = launch {
+                try {
+                    val update = tdClient.updates
+                        .filterIsInstance<TdApi.UpdateFile>()
+                        .first { it.file.id == fileId && it.file.local.isDownloadingCompleted }
+                    onComplete(File(update.file.local.path))
+                } catch (e: Exception) {
+                    Timber.tag(tag).w(e, "UpdateFile collect cancelled or failed")
+                }
+            }
+            tdClient.send(TdApi.DownloadFile(fileId, 32, 0, 0, true)) { result ->
+                when (result) {
+                    is TdApi.Error -> Timber.tag(tag).e("DownloadFile failed: %d %s", result.code, result.message)
+                    is TdApi.File -> if (result.local.isDownloadingCompleted) {
+                        updateJob.cancel()
+                        viewLifecycleOwner.lifecycleScope.launch { onComplete(File(result.local.path)) }
                     }
                 }
             }
@@ -672,13 +752,54 @@ class ChatFragment : Fragment() {
 
     private fun showMessagePreview(position: Int) {
         val row = adapter.rowAt(position) ?: return
-        messagePreviewText?.text = row.toPreviewText()
+        val token = ++previewToken
+        messagePreviewText?.apply {
+            visibility = View.VISIBLE
+            text = row.toPreviewText()
+        }
+        messagePreviewImage?.visibility = View.GONE
+        messagePreviewVideo?.apply {
+            stopPlayback()
+            visibility = View.GONE
+        }
         messagePreviewPopup?.visibility = View.VISIBLE
+        when (row) {
+            is MsgRow.Photo -> downloadFile(row.fileId, "PhotoPreview") { file ->
+                if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                    messagePreviewText?.visibility = View.GONE
+                    messagePreviewImage?.apply {
+                        setImageURI(Uri.fromFile(file))
+                        visibility = View.VISIBLE
+                    }
+                }
+            }
+            is MsgRow.Video -> downloadFile(row.fileId, "VideoPreview") { file ->
+                if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                    messagePreviewText?.visibility = View.GONE
+                    messagePreviewVideo?.apply {
+                        visibility = View.VISIBLE
+                        setVideoURI(Uri.fromFile(file))
+                        setOnPreparedListener { mp ->
+                            mp.isLooping = true
+                            start()
+                        }
+                    }
+                }
+            }
+            is MsgRow.Voice -> downloadFile(row.fileId, "VoicePreview") { file ->
+                if (previewToken == token && activeWindow == WindowSlot.MESSAGES && selectedMessagePosition == position) {
+                    playerPool().playVoice(file)
+                }
+            }
+            else -> Unit
+        }
     }
 
     private fun hideMessagePreview() {
         pendingPreviewRunnable?.let { previewHandler.removeCallbacks(it) }
         pendingPreviewRunnable = null
+        previewToken += 1
+        messagePreviewVideo?.stopPlayback()
         messagePreviewPopup?.visibility = View.GONE
     }
 

@@ -64,10 +64,15 @@ class VoiceNoteEncoder(outFile: File) {
             ogg.writeEosMarker()
         }
         ogg.close()
-        val durationS = (totalInputSamples16k / AudioCapturer.SAMPLE_RATE).toInt()
+        val durationS = ((totalInputSamples16k + AudioCapturer.SAMPLE_RATE - 1) / AudioCapturer.SAMPLE_RATE)
+            .toInt()
+            .coerceAtLeast(1)
         val maxL = (levels.maxOrNull() ?: 1).coerceAtLeast(1)
-        val waveform = ByteArray(levels.size) { i ->
-            ((levels[i] * 31L / maxL).coerceAtMost(31)).toByte()
+        val sampled = if (levels.size <= 100) levels else List(100) { i ->
+            levels[(i * levels.size / 100).coerceIn(0, levels.lastIndex)]
+        }
+        val waveform = ByteArray(sampled.size) { i ->
+            ((sampled[i] * 31L / maxL).coerceIn(0, 31)).toByte()
         }
         return durationS to waveform
     }

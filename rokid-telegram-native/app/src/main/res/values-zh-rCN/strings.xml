@@ -46,6 +46,7 @@
     <string name="mic_busy">麦克风被系统占用</string>
     <string name="voice_helper_not_ready">语音助手未就绪</string>
     <string name="voice_not_clear">没听清</string>
+    <string name="voice_send_failed">语音发送失败</string>
     <string name="voice_return_channel">语音返回</string>
     <string name="voice_return_title">Telegram 语音输入完成</string>
     <string name="voice_return_text">返回确认发送</string>

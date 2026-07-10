@@ -125,5 +125,22 @@
             android:lineSpacingExtra="2px"
             android:maxLines="8"
             android:ellipsize="end" />
+
+        <ImageView
+            android:id="@+id/message_preview_image"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="6px"
+            android:scaleType="centerInside"
+            android:visibility="gone" />
+
+        <VideoView
+            android:id="@+id/message_preview_video"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="6px"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

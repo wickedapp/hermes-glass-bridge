@@ -46,6 +46,7 @@
     <string name="mic_busy">Microphone is busy</string>
     <string name="voice_helper_not_ready">Voice helper is not ready</string>
     <string name="voice_not_clear">Didn’t catch that</string>
+    <string name="voice_send_failed">Voice send failed</string>
     <string name="voice_return_channel">Voice return</string>
     <string name="voice_return_title">Telegram voice input finished</string>
     <string name="voice_return_text">Return to confirm send</string>
