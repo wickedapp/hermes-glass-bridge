@@ -86,21 +86,24 @@ class PhoneCxrDictationProvider(
         val payload = args.stringAt(2)
         Timber.tag(TAG).i("rx %s session=%s event=%s payloadLen=%d", MSG_ASR, sessionId, event, payload.length)
         if (sessionId.isBlank() || event.isBlank()) return
-        val cb = callbacks[sessionId] ?: return
-        main.post {
-            when (event) {
-                "ready" -> cb.onReady()
-                "partial" -> cb.onPartial(payload)
-                "final" -> {
-                    callbacks.remove(sessionId)
-                    if (payload.isBlank()) cb.onError(DictationError.Empty) else cb.onFinal(payload)
+        when (event) {
+            "ready", "partial" -> {
+                val cb = callbacks[sessionId] ?: return
+                main.post {
+                    if (callbacks.containsKey(sessionId)) {
+                        if (event == "ready") cb.onReady() else cb.onPartial(payload)
+                    }
                 }
-                "error" -> {
-                    callbacks.remove(sessionId)
-                    cb.onError(DictationError(payload.ifBlank { "phone_error" }))
-                }
-                "end" -> callbacks.remove(sessionId)
             }
+            "final" -> {
+                val cb = callbacks.remove(sessionId) ?: return
+                main.post { if (payload.isBlank()) cb.onError(DictationError.Empty) else cb.onFinal(payload) }
+            }
+            "error" -> {
+                val cb = callbacks.remove(sessionId) ?: return
+                main.post { cb.onError(DictationError(payload.ifBlank { "phone_error" })) }
+            }
+            "end" -> callbacks.remove(sessionId)
         }
     }
 

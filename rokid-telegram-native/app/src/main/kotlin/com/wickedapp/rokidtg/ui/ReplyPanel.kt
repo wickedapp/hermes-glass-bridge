@@ -355,14 +355,24 @@ class ReplyPanel(
             }
 
             override fun onError(error: DictationError) {
-                Timber.tag("ReplyPanel").w("phone dictation error=%s msg=%s; falling back to Sprite helper", error.code, error.message)
+                Timber.tag("ReplyPanel").w("phone dictation error=%s msg=%s", error.code, error.message)
                 root.post {
                     if (!textActive || dictationSessionId != session.sessionId) return@post
                     dictationSessionId = null
-                    textTranscript.text = ctx.getString(R.string.composer_listening)
-                    textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
-                    startBridge()
-                    launchHiddenHelper()
+                    if (error.code == "speech_error_7" || error.code == "no_match" || error.code == "empty") {
+                        // Google ASR was reachable but heard nothing/unclear speech. Do not fall back to
+                        // Sprite helper here; that resurrects the old “語音助手未就緒” path.
+                        BannerHost.show(ctx.getString(R.string.voice_not_clear), BannerHost.Kind.WARN)
+                        textTranscript.text = ctx.getString(R.string.voice_not_clear)
+                        textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                        btnTextCancel.requestFocus()
+                    } else {
+                        Timber.tag("ReplyPanel").w("falling back to Sprite helper after phone dictation error=%s", error.code)
+                        textTranscript.text = ctx.getString(R.string.composer_listening)
+                        textTranscript.setTextColor(ctx.getColor(R.color.primary_50))
+                        startBridge()
+                        launchHiddenHelper()
+                    }
                 }
             }
         })
