@@ -1,5 +1,6 @@
 package com.wickedapp.rokidtg.ui
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -23,16 +24,29 @@ class FullMessageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val title = requireArguments().getString(ARG_TITLE).orEmpty()
         val text = requireArguments().getString(ARG_TEXT).orEmpty()
-        view.findViewById<TextView>(R.id.full_message_title).text = title
-        view.findViewById<TextView>(R.id.full_message_text).text = text
+        view.setBackgroundColor(Color.BLACK)
+        view.defaultFocusHighlightEnabled = false
+        view.findViewById<TextView>(R.id.full_message_title).apply {
+            this.text = title
+            defaultFocusHighlightEnabled = false
+        }
+        view.findViewById<TextView>(R.id.full_message_text).apply {
+            this.text = text
+            setBackgroundColor(Color.BLACK)
+            defaultFocusHighlightEnabled = false
+            isFocusable = false
+        }
         view.findViewById<ImageView>(R.id.full_message_back).setOnClickListener {
             closeReaderOnly()
         }
         scroll = view.findViewById(R.id.full_message_scroll)
         val scrollView = scroll ?: return
-        scrollView.isFocusableInTouchMode = true
-        scrollView.requestFocus()
+        scrollView.setBackgroundColor(Color.BLACK)
+        scrollView.defaultFocusHighlightEnabled = false
+        scrollView.isFocusable = false
+        scrollView.isFocusableInTouchMode = false
         view.isFocusableInTouchMode = true
+        view.requestFocus()
         // Tapping inside the reader should keep the user in the full-message view.
         // Only Back or the explicit back icon exits this overlay.
         view.setOnClickListener { /* consume, do not close */ }
