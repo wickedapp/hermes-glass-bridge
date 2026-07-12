@@ -1,64 +1,139 @@
-# Rokid Telegram (native)
+# Rokid Telegram Native
 
-Sideloaded bare-metal Android APK that runs on Rokid RG-glasses and acts as a personal Telegram client.
+`rokid-telegram-native/` is the main **Rokid TG** glasses app: a native Android Telegram client for Rokid RG glasses.
 
-- **Telegram session lives on the glasses** — TDLib (`org.drinkless.tdlib` v1.8.65 via `app/libs/tdlib.aar`) holds the MTProto connection.
-- **Internet from the vivo X200 Ultra over Bluetooth tethering** — glasses see `bt-pan` as a normal network interface; no phone-side companion app at runtime.
-- **Voice-to-text via Rokid's native ASR** — a separate Sprite Ink mini-app at `../voice-helper/` runs `SpeechRecognition` (NXP RT600 + iFlytek pipeline) and ships transcripts over a localhost WebSocket with per-session UUID nonce.
-- **Voice notes** — 8-channel `AudioRecord` (mask `0x6000FC`) → keep ch 0/1 → Concentus Opus encoder → custom RFC 7845 OggWriter → TDLib `InputMessageVoiceNote`.
+- Package: `com.wickedapp.rokidtg`
+- Runtime: sideloaded Android APK on the glasses
+- Telegram stack: TDLib JNI (`app/libs/tdlib.aar`)
+- UI style: black/green compact terminal/BBS HUD for 480-wide Rokid displays
+- Input: Rokid touchpad/DPAD/Enter/Back plus optional Bluetooth keyboard
+- Dictation: `DictationProvider` seam with phone CXR companion as preferred path and Sprite Ink helper as fallback/debug
 
-Spec + decisions: `../docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`
-Design rules: `../docs/ROKID_DESIGN_GUIDELINES.md`
-PR: https://github.com/wickedapp/hermes-glass-bridge/pull/1
+## Features
 
-## Prereqs
+- Telegram authorization through TDLib.
+- Chat list and per-chat message history.
+- BBS/terminal-style compact chat/message rows.
+- Local chat pin/mute state for glasses HUD controls.
+- Text, photo, video, voice-note, sticker/emoji, service-message summaries.
+- Media viewer / voice playback using Android media stack.
+- Reply panel with text, voice-note, and Dictate flows.
+- Off-chat banner notification channel.
+- Traditional Chinese default dictation language (`zh-TW`).
 
-- macOS host with JDK 17 (`/opt/homebrew/opt/openjdk@17`) and Android SDK (`~/Library/Android/sdk`).
-- Rokid RG-glasses connected via dev cable (serial `1906092624100227` in this repo's scripts; override with `SERIAL=<id>`).
-- A Telegram developer account → grab `api_id` / `api_hash` at https://my.telegram.org/apps.
+## Architecture
 
-Write your Telegram credentials into `local.properties` (gitignored):
+```text
+MainActivity
+├─ AuthFragment
+├─ ChatListFragment
+├─ ChatFragment
+├─ FullMessageFragment / MediaViewerFragment
+└─ TelegramService foreground service
+   ├─ TdLibClient
+   ├─ ChatRepo / MessageRepo
+   ├─ NotificationCenter
+   └─ NetworkMonitor
+
+Reply / voice layer
+├─ ReplyPanel
+├─ AudioCapturer → VoiceNoteEncoder → TDLib InputMessageVoiceNote
+└─ DictationProvider
+   ├─ PhoneCxrDictationProvider      preferred: phone CXR-L companion ASR
+   └─ VoiceHelperBridge              fallback/debug: Sprite Ink ASR helper
 ```
-sdk.dir=/Users/wickedapp/Library/Android/sdk
-tg.apiId=12345
-tg.apiHash=abcdef0123456789abcdef0123456789
+
+Only ASR/dictation is delegated to the phone companion. Telegram UI, TDLib, history, media, and final send confirmation remain on the glasses.
+
+## Prerequisites
+
+- macOS host with Android SDK / `adb`.
+- JDK 17.
+- Rokid glasses connected by ADB.
+- Telegram `api_id` and `api_hash` from <https://my.telegram.org/apps>.
+- Optional: `tdl` CLI for Mac-side session seeding.
+- Optional but recommended for Dictate: `../rokid-voice-companion/` installed on the paired Android phone.
+
+## Configure Telegram credentials
+
+Create `local.properties` in this directory:
+
+```properties
+sdk.dir=/Users/<you>/Library/Android/sdk
+tg.apiId=123456
+tg.apiHash=0123456789abcdef0123456789abcdef
 ```
 
-## Build & install
+`local.properties` is gitignored. Do not commit your Telegram credentials.
+
+## Build
 
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
-PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH \
-  ./gradlew :app:installDebug
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH
+./gradlew :app:assembleDebug
 ```
 
-APK lands at `app/build/outputs/apk/debug/app-debug.apk`. Package id: `com.wickedapp.rokidtg`.
+APK:
 
-## Seed the TDLib session (one-time)
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
-Typing your phone number + SMS code on the 480-wide HUD is miserable; do it once on Mac and `adb push` the resulting `td.binlog` into the app's data dir:
+## Install and launch on glasses
 
 ```bash
-../scripts/seed-session.sh +<your-phone-number>
+adb devices
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -W -n com.wickedapp.rokidtg/.MainActivity
 ```
 
-The script expects [`tdl`](https://github.com/iyear/tdl) on `PATH`.
-
-## Push the voice helper
+If multiple devices are connected:
 
 ```bash
-../scripts/push-helper.sh
+adb -s <rokid-serial> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <rokid-serial> shell am start -W -n com.wickedapp.rokidtg/.MainActivity
 ```
 
-This pushes `voice-helper/` to `/sdcard/aix/voice-helper` on the glasses and asks the Sprite launcher to reload its aix index.
+## Telegram login
 
-## Smoke
+### Option A: login on glasses
+
+Launch the app and follow TDLib authorization on the HUD.
+
+### Option B: seed from Mac
+
+From repo root:
 
 ```bash
-../scripts/glasses-smoke.sh
+./scripts/seed-session.sh +<your-phone-number>
 ```
 
-Builds, installs, pushes the helper, launches `MainActivity`, soft-checks authorization, fires safe key events, verifies the foreground service is running + the `tg-banner` notification channel is registered, then runs the JVM unit tests. Exits 0 on success.
+This avoids typing the entire login flow on the glasses. The script expects `tdl` on `PATH` and pushes the session into the app data directory.
+
+## Dictation setup
+
+### Preferred: phone CXR companion
+
+Install and authorize `../rokid-voice-companion/` on the Android phone paired to the glasses. Then use **Reply → Dictate** on the glasses.
+
+Protocol:
+
+```text
+glasses -> phone: tg.dictate.start(sessionId, chatId, lang)
+glasses -> phone: tg.dictate.cancel(sessionId)
+phone   -> glasses: tg.asr(sessionId, ready|partial|final|error|end, payload)
+```
+
+### Fallback/debug: Sprite Ink helper
+
+From repo root:
+
+```bash
+./scripts/push-helper.sh
+```
+
+This pushes `../voice-helper/` to `/sdcard/aix/voice-helper`. Use this only as a fallback/debug path; the production direction is phone CXR ASR.
 
 ## Tests
 
@@ -66,46 +141,46 @@ Builds, installs, pushes the helper, launches `MainActivity`, soft-checks author
 ./gradlew :app:testDebugUnitTest
 ```
 
-17 JVM unit tests across `data`, `service`, `voice`, `media`, `ui.input` packages. No instrumented tests yet.
+Current tests cover repo/data logic, TDLib wrapper behavior, media helpers, voice note encoding, voice helper bridge behavior, and input routing.
 
-## Project layout
+## Smoke test
 
+From repo root:
+
+```bash
+SERIAL=<rokid-serial> ./scripts/glasses-smoke.sh
 ```
-rokid-telegram-native/
-├── app/
-│   ├── build.gradle.kts
-│   ├── libs/
-│   │   ├── tdlib.aar       (FaiBah/tdlib-android-prebuilt v1.8.65, ~38 MB)
-│   │   └── concentus.jar   (pure-Java Opus encoder)
-│   └── src/
-│       ├── main/kotlin/com/wickedapp/rokidtg/
-│       │   ├── MainActivity.kt         Single Activity, fragment-swap host
-│       │   ├── TelegramApp.kt          Application + Timber init
-│       │   ├── service/
-│       │   │   ├── TelegramService.kt  Foreground service; owns TdLibClient + repos + monitors
-│       │   │   ├── TdLibClient.kt      JNI wrapper, updates SharedFlow
-│       │   │   ├── NetworkMonitor.kt   Maps WiFi/Cellular/BT transports → TDLib SetNetworkType
-│       │   │   └── NotificationCenter.kt  Off-chat banner posts
-│       │   ├── data/
-│       │   │   ├── ChatRepo.kt         Live chat list + search
-│       │   │   └── MessageRepo.kt      Per-chat history + pagination (service-cached)
-│       │   ├── ui/
-│       │   │   ├── ChatListFragment.kt
-│       │   │   ├── ChatFragment.kt
-│       │   │   ├── MediaViewerFragment.kt
-│       │   │   ├── ComposerOverlay.kt  Voice→text + voice note + BT keyboard
-│       │   │   ├── BannerHost.kt       Top-of-safe-area error/info pill
-│       │   │   └── input/              SpriteBroadcast + InputRouter
-│       │   ├── voice/
-│       │   │   ├── VoiceHelperBridge.kt   localhost WebSocket server (ephemeral port + nonce)
-│       │   │   ├── AudioCapturer.kt       8-channel AudioRecord, ch 0/1 kept
-│       │   │   ├── VoiceNoteEncoder.kt    Concentus Opus + Ogg
-│       │   │   └── OggWriter.kt           RFC 3533 + 7845 mux
-│       │   └── media/
-│       │       ├── MediaCache.kt          BitmapFactory 480px/RGB_565
-│       │       └── MediaPlayerPool.kt     ExoPlayer slot for voice playback
-│       ├── src/main/res/                Layouts, drawables, dimens, fonts, themes
-│       ├── src/test/kotlin/...          17 JVM unit tests
-│       └── src/debug/                   DesignPreviewActivity for typography/stroke checks
-└── settings.gradle.kts, gradle/wrapper, gradlew, ...
+
+The script builds, installs, launches the app, fires safe navigation events, checks the foreground service and notification channel, then runs unit tests.
+
+## Useful debug commands
+
+```bash
+adb logcat -c
+adb shell am start -W -n com.wickedapp.rokidtg/.MainActivity
+adb logcat -d -s TG PhoneDictation VoiceBridge AndroidRuntime
+adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'
+adb shell dumpsys activity services | grep TelegramService
 ```
+
+## Source layout
+
+```text
+app/src/main/kotlin/com/wickedapp/rokidtg/
+├── MainActivity.kt
+├── TelegramApp.kt
+├── data/                 ChatRepo, MessageRepo, row models, local chat prefs
+├── media/                media cache + playback pool
+├── service/              TelegramService, TdLibClient, network monitor, notifications
+├── ui/                   auth/list/chat/media/reply/full-message UI
+├── ui/input/             Rokid key/touchpad/broadcast routing
+└── voice/                dictation providers, ASR bridge, audio capture, OGG/Opus voice notes
+```
+
+## Notes for contributors
+
+- Keep Telegram data and TDLib session files local.
+- Keep all user-facing text localized through Android resources.
+- Do not display raw TDLib class names in message rows.
+- Keep focus highlights obvious: filled green background + strong border, not outline-only.
+- Verify UI/focus work on real glasses with ADB, logs, screenshots, or mirror evidence.

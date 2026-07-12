@@ -1,107 +1,281 @@
-# hermes-glass-bridge
+# Rokid TG / Hermes Glass Bridge
 
-Mac + Rokid Glasses projects under one roof. Three independent products live here, each in its own directory:
+**Rokid TG** is a Telegram client designed for Rokid smart glasses: a native Android APK runs directly on the glasses, talks to Telegram through TDLib, and presents Telegram in a compact black/green terminal-style HUD that works with Rokid touchpad, DPAD, Enter, Back, Bluetooth keyboard, notifications, media, and voice reply flows.
 
-| Directory | Product | Status |
+This repository also contains the earlier **Hermes Glass Terminal** bridge and historical prototypes, but the shareable product in this repo is now **Rokid TG**.
+
+> **Status:** experimental developer build. It is useful for personal sideloading and technical review, but it is not a Play Store product and still depends on Rokid/Android/CXR behavior that can vary by device firmware.
+
+## Why Rokid TG?
+
+| Selling point | What it means |
+|---|---|
+| **Telegram on glasses, not a phone mirror** | TDLib runs on the glasses APK. Chat list, message history, media preview/playback, reply state, and notifications are first-class glasses UI. |
+| **Glasses-first interaction model** | Designed for a 480×640 / 480×400-safe Rokid HUD with high-contrast black + Rokid green, compact rows, explicit focus, and DPAD/touchpad navigation. |
+| **Terminal / BBS density** | The UI favors information density: `GROUP / TIME / LAST MESSAGE / NEW` style lists and compact message rows instead of phone-style chat bubbles. |
+| **Voice replies without typing on glasses** | Dictation is abstracted behind a provider seam. Production path uses a phone CXR companion for microphone + ASR; Sprite Ink helper remains a fallback/debug path. |
+| **Media-aware Telegram renderer** | Text, photos, videos, voice notes, stickers/animated emoji/service messages are summarized for the HUD instead of leaking raw TDLib class names. |
+| **Local-first, sideloadable** | No custom backend is required for Telegram messages. Secrets are local (`local.properties`, TDLib session files, optional phone authorization token). |
+
+## Current architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ Rokid RG glasses                                                     │
+│                                                                     │
+│  rokid-telegram-native/ Android APK                                  │
+│  ├─ MainActivity + fragments: auth, chat list, chat, media viewer    │
+│  ├─ TDLib JNI (local tdlib.aar)                                      │
+│  ├─ TelegramService foreground service                              │
+│  ├─ ChatRepo / MessageRepo / NotificationCenter                     │
+│  ├─ ReplyPanel + InputRouter for Rokid keys / BT keyboard            │
+│  ├─ MediaCache + ExoPlayer voice/video playback                      │
+│  └─ DictationProvider seam                                           │
+│      ├─ PhoneCxrDictationProvider  ← preferred production path       │
+│      └─ VoiceHelperBridge         ← Sprite helper fallback/debug     │
+└─────────────────────────────────────────────────────────────────────┘
+            │
+            │ Telegram MTProto through TDLib
+            ▼
+      Telegram cloud
+
+            │ CXR custom commands for Dictate only
+            ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Android phone                                                        │
+│                                                                     │
+│  rokid-voice-companion/                                              │
+│  ├─ one-time Hi Rokid authorization                                  │
+│  ├─ foreground service bound to Hi Rokid CXR-L media service         │
+│  ├─ Android SpeechRecognizer / phone microphone                      │
+│  └─ protocol: tg.dictate.start/cancel → tg.asr ready/partial/final   │
+└─────────────────────────────────────────────────────────────────────┘
+
+Fallback/debug:
+  voice-helper/ Sprite Ink mini-app on glasses
+  └─ Rokid SpeechRecognition → localhost WebSocket → native APK
+```
+
+### Important design decision
+
+Only the **dictation / ASR module** moves to the phone companion. Telegram UI, TDLib, message history, notification handling, media handling, and final send confirmation stay on the glasses.
+
+## Repository layout
+
+| Path | Purpose | Status |
 |---|---|---|
-| `app/` + `android-app/` + `web/` | **Hermes Glass Terminal** — FastAPI bridge + Android WebView wrapper that turns the Rokid Glasses into a HUD terminal for Hermes Agent / Claude / Codex on the Mac. | Active (the original project; see `docs/DEV_CONSOLE_PLAN.md`). |
-| `rokid-telegram-native/` + `voice-helper/` | **Rokid Telegram (native)** — sideloaded bare-metal Android APK on the glasses that talks to Telegram directly (TDLib), plus a Sprite Ink companion that does on-device voice-to-text via Rokid's native ASR. Internet comes from the vivo X200 Ultra over BT-PAN. | **v1 in PR #1.** Spec: `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`. |
-| `rokid-telegram-mockup/` | **Rokid Telegram UI mockup** — Sprite Ink mini-program using the official Rokid scaffold style for quick glasses-first UX review (480×400 safe area, DPAD/Enter/Back flow). | Mockup / disposable. Push with `scripts/push-telegram-mockup.sh`. |
-| `rokid-telegram-app/` | Earlier glasses-side WebView prototype. | **Superseded.** Reference only. |
-| `rokid-telegram-phone-app/` | Earlier phone-side WebView companion. | **Superseded.** Reference only. |
-| `rokid-aiui-mic-test/` | Probe of the Rokid Sprite/Ink `SpeechRecognition` runtime. | Reference; pattern used by `voice-helper/`. |
+| `rokid-telegram-native/` | Main Rokid TG native glasses APK (`com.wickedapp.rokidtg`). | Active |
+| `rokid-voice-companion/` | Phone-side CXR-L ASR companion for Dictate. | Active / experimental |
+| `voice-helper/` | Sprite Ink ASR helper for fallback/debug dictation. | Fallback |
+| `docs/ROKID_DESIGN_GUIDELINES.md` | Rokid visual and interaction constraints. | Reference |
+| `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md` | Original product spec and decision log. | Reference |
+| `scripts/glasses-smoke.sh` | Build/install/launch smoke test for the glasses APK. | Active |
+| `scripts/seed-session.sh` | Optional TDLib login seeding helper. | Active |
+| `scripts/push-helper.sh` | Pushes `voice-helper/` to the glasses. | Fallback path |
+| `app/`, `web/`, `android-app/` | Earlier Hermes Glass Terminal / Dev Console bridge. | Separate product |
+| `rokid-telegram-app/`, `rokid-telegram-phone-app/`, `rokid-telegram-mockup/` | Earlier prototypes. | Superseded/reference |
 
-## Product 1 — Hermes Glass Terminal
+## Prerequisites
 
-Local bridge that turns Rokid Glasses into a Hermes / Claude / Codex dev console.
+### Host Mac
 
-- Browser/Rokid AR terminal UI at `http://127.0.0.1:8765/`
-- WebSocket command channel at `/ws/glass`
-- `Hermes` mode: sends prompts to Hermes Agent API Server
-- `Sessions` mode: lists/attaches/sends input to Mac tmux sessions for Claude/Codex/shell workflows
-- `Claude` mode: runs Claude Code print mode (`claude -p`) in `~/HermesGlassProjects/<project>`
-- `Codex` session support: start/list/capture Codex tasks through tmux
-- `Terminal` mode: runs shell commands in `~/HermesGlassProjects/<project>`
-- `Rokid AIUI voice`: uses glasses-side `SpeechRecognition`; final transcript is sent as text to the bridge
+- macOS with Android SDK / platform tools (`adb`) installed.
+- JDK 17. The scripts assume Homebrew OpenJDK 17 at:
+  `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`.
+- GitHub CLI (`gh`) only if you maintain/publish the repo.
+- Optional: [`tdl`](https://github.com/iyear/tdl) if you want to seed TDLib login from the Mac instead of typing on the glasses.
 
-### Run
+### Rokid glasses
+
+- Rokid RG glasses with developer/ADB access enabled.
+- USB connection for sideloading, or another ADB route.
+- Network connectivity on the glasses. In the original setup this was phone Bluetooth PAN/tethering, but any route that lets TDLib reach Telegram should work.
+
+### Telegram developer credentials
+
+Create a Telegram app at <https://my.telegram.org/apps> and note:
+
+- `api_id`
+- `api_hash`
+
+These are required by TDLib and must **not** be committed.
+
+### Optional phone companion
+
+For the preferred Dictate flow:
+
+- Android phone paired with the Rokid glasses through Hi Rokid / CXR.
+- Hi Rokid / global AI app installed (`com.rokid.sprite.global.aiapp`).
+- Google/Android speech recognition provider available if you want Android `SpeechRecognizer` to work reliably.
+- Microphone, Bluetooth, nearby-device/location, and notification permissions granted to the companion app.
+
+## Installation and configuration
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/wickedapp/hermes-glass-bridge.git
+cd hermes-glass-bridge
+```
+
+### 2. Configure Telegram credentials
+
+Create `rokid-telegram-native/local.properties`:
+
+```properties
+sdk.dir=/Users/<you>/Library/Android/sdk
+tg.apiId=123456
+tg.apiHash=0123456789abcdef0123456789abcdef
+```
+
+`local.properties` is gitignored.
+
+### 3. Build the glasses APK
+
+```bash
+cd rokid-telegram-native
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH
+./gradlew :app:assembleDebug
+```
+
+APK output:
+
+```text
+rokid-telegram-native/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 4. Install on the glasses
+
+```bash
+adb devices
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -W -n com.wickedapp.rokidtg/.MainActivity
+```
+
+If more than one device is connected, pass `-s <serial>` or set `SERIAL=<serial>` for repo scripts.
+
+### 5. Log in to Telegram
+
+You have two options:
+
+#### Option A — normal TDLib auth on glasses
+
+Launch the app and complete the phone/code flow on the Rokid UI. This works but is not pleasant on a small HUD.
+
+#### Option B — seed the TDLib session from Mac
+
+```bash
+cd ..
+./scripts/seed-session.sh +<your-phone-number>
+```
+
+This script expects `tdl` on `PATH`, completes login on the Mac, then pushes the resulting TDLib session/binlog into the app data directory on the glasses.
+
+### 6. Install the phone dictation companion (recommended for Dictate)
+
+From repo root:
+
+```bash
+cd rokid-voice-companion
+./gradlew :app:assembleDebug
+adb -s <phone-serial> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <phone-serial> shell am start -n com.wickedapp.rokidvoicecompanion/.MainActivity
+```
+
+On first launch:
+
+1. Grant requested Android permissions.
+2. Complete Hi Rokid authorization when prompted.
+3. Let the app start its foreground service and move to the background.
+4. Keep the notification/service running while using Dictate from the glasses.
+
+Expected protocol when you press **Reply → Dictate** on the glasses:
+
+```text
+glasses → phone: tg.dictate.start(sessionId, chatId, lang)
+phone   → glasses: tg.asr ready
+phone   → glasses: tg.asr partial "..."
+phone   → glasses: tg.asr final "..."
+```
+
+### 7. Optional Sprite helper fallback
+
+If you are testing the older glasses-side ASR helper:
+
+```bash
+./scripts/push-helper.sh
+```
+
+This pushes `voice-helper/` to `/sdcard/aix/voice-helper` and asks the Sprite launcher to reload. Treat this path as fallback/debug; the phone companion is the intended production dictation path.
+
+## Verification
+
+### Unit tests
+
+```bash
+cd rokid-telegram-native
+./gradlew :app:testDebugUnitTest
+```
+
+### Glasses smoke test
+
+```bash
+cd ..
+SERIAL=<rokid-serial> ./scripts/glasses-smoke.sh
+```
+
+The smoke script builds the APK, installs it, launches `MainActivity`, performs safe key events, checks service/notification state, and runs JVM unit tests.
+
+### Useful manual checks
+
+```bash
+# Foreground activity
+adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'
+
+# Rokid TG logs
+adb logcat -d -s TG PhoneDictation RokidVoiceCompanion AndroidRuntime
+
+# Check package installed
+adb shell pm list packages | grep wickedapp
+```
+
+## Runtime controls
+
+| Input | Expected behavior |
+|---|---|
+| DPAD / Rokid touchpad Up/Down | Move focus through chat rows/windows or message rows depending on mode. |
+| Enter / single click | Open selected chat/message/action, or confirm selected reply action. |
+| Back | Leave active window, return to chat list, or exit according to the current layer. |
+| Bluetooth keyboard text | Text reply path where supported. |
+| Reply → Dictate | Starts phone CXR ASR companion, streams transcript back, then shows confirm-send UI. |
+| Reply → Voice | Records an OGG/Opus Telegram voice note and sends through TDLib. |
+
+## Security and privacy notes
+
+- Do not commit `local.properties`, TDLib session files, phone authorization tokens, generated APKs with private credentials, or logs containing chats.
+- TDLib stores Telegram session data inside the app data directory on the glasses.
+- The companion phone app stores the Hi Rokid authorization token in Android shared preferences so its foreground service can restart.
+- This project is for personal/developer sideloading. Audit the code and dependencies before sharing builds with other people.
+
+## Development notes
+
+- Main code: `rokid-telegram-native/app/src/main/kotlin/com/wickedapp/rokidtg/`.
+- UI constraints: black background, Rokid green highlights, large enough focus indication, compact terminal/BBS rows, no tiny phone UI controls.
+- Keep Dictate behind `DictationProvider`; do not move Telegram/TDLib to the phone unless the architecture intentionally changes.
+- Prefer real-device verification: build → install → launch → logcat/dumpsys/screenshot proof.
+
+## Legacy Hermes Glass Terminal
+
+The original Hermes Glass Terminal remains in this repo:
+
 ```bash
 ./scripts/run.sh
-```
-Open `http://127.0.0.1:8765/`.
-
-### Env
-```bash
-export HERMES_API_BASE=http://127.0.0.1:8642/v1
-export HERMES_GLASS_WORKSPACE=~/HermesGlassProjects
-export HOST=127.0.0.1
-export PORT=8765
+# opens FastAPI/WebSocket bridge at http://127.0.0.1:8765/
 ```
 
-Reads `API_SERVER_KEY` from `~/.hermes/.env` automatically, or set `HERMES_API_KEY=<key>`.
+Its Android WebView wrapper lives in `android-app/`. It is separate from Rokid TG.
 
-### Glasses APK (Hermes Terminal)
+## License
 
-```bash
-adb reverse tcp:8765 tcp:8765
-```
-Then the Rokid WebView uses `http://127.0.0.1:8765/?glasses=1`. APK builds at `android-app/`. Full dev plan: `docs/DEV_CONSOLE_PLAN.md`.
-
-## Product 2 — Rokid Telegram (native)
-
-A sideloaded Android APK that runs on the Rokid RG-glasses and acts as a Telegram client (chat list, open chat, text + photo + video + voice playback, BT keyboard / voice-to-text / voice note replies, off-chat notifications). Pair the glasses to your phone over Bluetooth; the phone provides internet via standard BT-PAN tethering. No phone-side companion app needed at runtime.
-
-### Quick start
-```bash
-# 1. Get a Telegram api_id / api_hash at https://my.telegram.org/apps
-# 2. Write them into rokid-telegram-native/local.properties:
-#       tg.apiId=12345
-#       tg.apiHash=abc123...
-# 3. Build & install the APK
-cd rokid-telegram-native
-JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
-PATH=/opt/homebrew/opt/openjdk@17/bin:$HOME/Library/Android/sdk/platform-tools:$PATH \
-  ./gradlew :app:installDebug
-
-# 4. Push the Sprite Ink voice helper
-cd ..
-scripts/push-helper.sh
-
-# 5. One-time TDLib session seed (typing your phone number on the glasses HUD is awful;
-#    do it once on Mac and push the binlog into the app's data dir)
-scripts/seed-session.sh +<your-phone-number>
-
-# 6. Smoke test on the connected glasses
-scripts/glasses-smoke.sh
-```
-
-Subdir READMEs: `rokid-telegram-native/README.md`, `voice-helper/README.md`. Design rules: `docs/ROKID_DESIGN_GUIDELINES.md`. Full spec + decisions log: `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md`.
-
-## Repo layout
-
-```
-hermes-glass-bridge/
-├── app/                            Hermes bridge (FastAPI)
-├── web/                            Hermes HUD UI
-├── android-app/                    Hermes Terminal APK (WebView)
-├── rokid-telegram-native/          ← Rokid Telegram, native APK + Sprite Ink helper
-├── rokid-telegram-mockup/          ← Sprite Ink UI mockup for glasses-first Telegram UX review
-├── voice-helper/                   ← Sprite Ink voice→text companion (.aix)
-├── rokid-telegram-app/             [SUPERSEDED] earlier glasses WebView prototype
-├── rokid-telegram-phone-app/       [SUPERSEDED] earlier phone WebView companion
-├── rokid-aiui-mic-test/            Sprite Ink ASR probe (reference)
-├── scripts/
-│   ├── run.sh / run-lan.sh         Hermes bridge launchers
-│   ├── mirror-rokid.sh             scrcpy mirror (visual verification path on glasses)
-│   ├── screenshot-rokid.sh         scrcpy screenshot
-│   ├── seed-session.sh             ← TDLib login on Mac → adb push binlog
-│   ├── push-helper.sh              ← push voice-helper.aix to glasses
-│   └── glasses-smoke.sh            ← end-to-end smoke for the Telegram client
-├── docs/
-│   ├── DEV_CONSOLE_PLAN.md         Hermes Terminal dev plan
-│   ├── ROKID_DESIGN_GUIDELINES.md  Glasses UI rules (480x400 safe area, #40FF5E on #000, etc.)
-│   └── superpowers/
-│       ├── specs/                  Design specs
-│       └── plans/                  Implementation plans
-└── HANDOFF_ROKID_TELEGRAM.md       [SUPERSEDED] old direction; see spec instead
-```
+MIT. See [`LICENSE`](LICENSE).

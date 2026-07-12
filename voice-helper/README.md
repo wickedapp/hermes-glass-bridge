@@ -1,43 +1,79 @@
-# voice-helper (Sprite Ink mini-app)
+# voice-helper (Sprite Ink fallback)
 
-A tiny Rokid Sprite Ink mini-app whose only job is to run `SpeechRecognition` and ship the transcript to the bare-metal Telegram APK over a localhost WebSocket.
+`voice-helper/` is a small Rokid Sprite Ink mini-app used as a **fallback/debug** dictation path for Rokid TG.
 
-Lives in the Sprite Ink runtime — **separate process / separate installable** from `../rokid-telegram-native/`. The two are paired by:
-- `MainActivity.getOrCreateBridge()` in the Android APK starts a `VoiceHelperBridge` on an ephemeral 127.0.0.1 port and generates a fresh `sessionNonce` (UUID) per session.
-- The Android side launches this helper via `am start` and (will) pass `port` + `nonce` to it.
-- This helper opens `ws://127.0.0.1:<port>`, sends `{"type":"ready","nonce":"<uuid>"}`, then streams `{"type":"interim","text":"..."}` / `{"type":"final","text":"..."}` as Rokid's ASR returns results, then exits.
+The current product direction is:
 
-The Android-side bridge rejects any `ready` frame whose nonce doesn't match, so other apps on the device can't inject fake transcripts.
+1. `rokid-telegram-native/` stays on the glasses and owns Telegram/TDLib/UI/send flow.
+2. `rokid-voice-companion/` is the preferred production dictation provider over CXR.
+3. `voice-helper/` remains useful for proving Rokid on-device `SpeechRecognition` behavior and for fallback experiments.
+
+## How it works
+
+```text
+Rokid TG native APK
+└─ VoiceHelperBridge starts a localhost WebSocket server
+   └─ launches this Sprite Ink helper
+      └─ helper calls Rokid SpeechRecognition
+         └─ helper streams ready/interim/final JSON frames back to the APK
+```
+
+The Android bridge uses an ephemeral port and per-session nonce so stale or unrelated helper frames are ignored.
 
 ## Files
 
-```
+```text
 voice-helper/
-├── app.json                 manifest: appId "com.wickedapp.voicehelper"
-├── app.js                   App() lifecycle stubs
-└── pages/voice/voice.ink    SpeechRecognition + WebSocket + auto-exit
+├── app.json
+├── app.js
+└── pages/voice/voice.ink
 ```
 
-Modelled on `../rokid-aiui-mic-test/`, which proved on this device that the Sprite Ink runtime exposes `SpeechRecognition` wired to the on-device Rokid ASR pipeline (NXP RT600 + iFlytek via `JsaiService`).
+`pages/voice/voice.ink` contains the Rokid `SpeechRecognition` + WebSocket logic.
 
 ## Push to glasses
 
+From repo root:
+
 ```bash
-../scripts/push-helper.sh
+./scripts/push-helper.sh
 ```
 
-Pushes this directory to `/sdcard/aix/voice-helper` on the connected Rokid (serial `1906092624100227` by default; override with `SERIAL=<id>`) and asks the Sprite launcher to reload its aix index via `com.rokid.sprite.aix.RELOAD`.
+This pushes the directory to:
 
-If the launcher doesn't pick it up automatically, fallback is `adb shell am force-stop com.rokid.os.sprite.launcher` — it rescans on next launch.
+```text
+/sdcard/aix/voice-helper
+```
 
-## Status
+and broadcasts:
 
-- **Voice-helper APK + bridge protocol implemented and unit-tested** on the Android side (`VoiceHelperBridgeTest` asserts the nonce handshake + interim/final ordering).
-- **End-to-end `am start` launch round-trip is `[VERIFY:launch-intent]`** — the intent shape (`com.rokid.os.sprite.launcher/.main.SpriteMainActivity --es appId com.wickedapp.voicehelper`) is plausible but hasn't been observed working in a session. Needs a manual on-device test.
-- If the helper can't read intent extras (Sprite SDK capability unknown), the alternative is a file-based handshake — write `{port, nonce}` to a shared file before launching. `boundPort` and `sessionNonce` are exposed on the bridge for exactly this fallback.
+```text
+com.rokid.sprite.aix.RELOAD
+```
 
-## Related
+If the launcher does not rescan automatically, force-stop the Sprite launcher and relaunch it.
 
-- Spec: `../docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md` (D6 + Decisions log)
-- Bridge code: `../rokid-telegram-native/app/src/main/kotlin/com/wickedapp/rokidtg/voice/VoiceHelperBridge.kt`
-- Bridge tests: `../rokid-telegram-native/app/src/test/kotlin/com/wickedapp/rokidtg/voice/VoiceHelperBridgeTest.kt`
+## Verification hints
+
+Useful native APK log tags:
+
+```bash
+adb logcat -d -s VoiceBridge PhoneDictation TG AndroidRuntime
+```
+
+Healthy fallback indicators include:
+
+```text
+VoiceBridge: onOpen
+VoiceBridge: onMessage {"type":"ready"...}
+VoiceBridge: onMessage {"type":"interim"...}
+VoiceBridge: onMessage {"type":"final"...}
+```
+
+Also verify foreground after dictation. A transcript in logs is not enough if the helper Activity remains visible instead of returning to the Telegram chat page.
+
+## Common pitfalls
+
+- The glasses WLAN/IP can change, which can break helper WebSocket reachability.
+- Sprite helper pages can steal foreground from the native APK; the product UI must be brought back to the chat page on ready/final.
+- If helper WebSocket readiness fails, do not keep adding hardcoded IPs forever. Prefer the phone companion path for production.

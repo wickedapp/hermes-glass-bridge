@@ -1,29 +1,57 @@
 # Rokid Voice Companion
 
-Phone-side ASR companion POC for Rokid TG.
+`rokid-voice-companion/` is the phone-side ASR companion for **Rokid TG**.
 
-## Scope
+It intentionally moves **only Dictate / speech-to-text** off the glasses. Telegram UI, TDLib, chat history, media, notifications, and final send confirmation stay in `../rokid-telegram-native/` on the Rokid glasses.
 
-This app moves only the Dictate / voice-to-text module out of the glasses app. Telegram UI, TDLib, chat history, and final send stay in `../rokid-telegram-native` on the glasses.
+## Why this exists
+
+Rokid glasses can run the Telegram client locally, but dictation is more reliable when the paired Android phone handles microphone capture and Android speech recognition, then streams the transcript back over Rokid CXR.
+
+## Current behavior
+
+- Runs as an Android phone app + foreground service.
+- Opens Hi Rokid authorization once and stores the returned token locally.
+- Binds to Hi Rokid / global AI app CXR-L media service (`com.rokid.sprite.global.aiapp`).
+- Configures a `CUSTOMAPP` CXR session for the glasses app package `com.wickedapp.rokidtg`.
+- Receives `tg.dictate.start` / `tg.dictate.cancel` commands.
+- Uses Android `SpeechRecognizer` with default language `zh-TW`.
+- Sends `tg.asr` `ready`, `partial`, `final`, `error`, and `end` events back to the glasses.
+- Can move its Activity to the background after the foreground service starts.
 
 ## CXR protocol
 
-Glasses -> phone:
+Glasses → phone:
 
-- `tg.dictate.start` Caps fields: `[sessionId, chatId, lang]`
-- `tg.dictate.cancel` Caps fields: `[sessionId]`
+| Message | Caps fields |
+|---|---|
+| `tg.dictate.start` | `sessionId`, `chatId`, `lang` |
+| `tg.dictate.cancel` | `sessionId` |
 
-Phone -> glasses:
+Phone → glasses:
 
-- `tg.asr` Caps fields: `[sessionId, event, payload]`
-- `event`: `ready`, `partial`, `final`, `error`, `end`
+| Message | Caps fields |
+|---|---|
+| `tg.asr` | `sessionId`, `event`, `payload` |
 
-## Current POC behavior
+`event` is one of:
 
-- Phone app must be launched manually.
-- It installs a `CxrApi.setCustomCmdListener` listener.
-- On `tg.dictate.start`, it starts Android `SpeechRecognizer` using the phone microphone.
-- It streams `ready` / `partial` / `final` back to the glasses via `CxrApi.sendCustomCmd("tg.asr", caps)`.
+- `ready`
+- `partial`
+- `final`
+- `error`
+- `end`
+
+## Prerequisites
+
+- Android phone paired with Rokid glasses through Hi Rokid / CXR.
+- Hi Rokid / global AI app installed (`com.rokid.sprite.global.aiapp`).
+- Android speech recognition provider available. Google Speech Recognition and Synthesis usually works best.
+- Permissions granted:
+  - Microphone / `RECORD_AUDIO`
+  - Bluetooth / nearby devices
+  - Location where required by Android Bluetooth APIs
+  - Notifications for the foreground-service notification
 
 ## Build
 
@@ -37,21 +65,54 @@ APK:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Verification target
+## Install and authorize
 
-1. Install `rokid-telegram-native` on the glasses.
-2. Install this companion APK on the paired Android phone.
-3. Pair/connect phone and Rokid glasses through CXR.
-4. Launch this companion app and grant microphone / Bluetooth / location permissions.
-5. On glasses: Reply -> Dictate.
-6. Expected:
-   - phone logs `onCustomCmd name=tg.dictate.start`
-   - phone sends `tg.asr ready/partial/final`
-   - glasses ReplyPanel shows interim/final text
-   - final opens normal confirm-send UI
+```bash
+adb -s <phone-serial> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <phone-serial> shell am start -n com.wickedapp.rokidvoicecompanion/.MainActivity
+```
 
-## Not yet production-ready
+On first launch:
 
-- No foreground service yet; Activity must stay alive for POC.
-- No glasses-mic audio stream yet; first POC uses phone mic.
-- No phone device e2e has been verified in this repo session yet.
+1. Grant permissions.
+2. Tap/accept Hi Rokid authorization.
+3. Wait for `Background service started`.
+4. The Activity can move to the background; keep the foreground-service notification alive.
+
+## Verify with logs
+
+```bash
+adb -s <phone-serial> logcat -c
+adb -s <phone-serial> logcat -s RokidVoiceCompanion AndroidRuntime
+```
+
+Expected healthy log snippets:
+
+```text
+configCXRSession CUSTOMAPP com.wickedapp.rokidtg -> true
+bindGlobalHiRokidService -> true
+CXR-L service connected=true
+Hi Rokid glasses BT connected=true
+onCustomCmdResult key=tg.dictate.start
+send tg.asr event=ready result=0
+send tg.asr event=partial result=0
+send tg.asr event=final result=0
+```
+
+On glasses, the native app should log/receive the matching `tg.asr` events and show the transcript in the Reply panel.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| `Needs Hi Rokid authorization` | Open the companion Activity and authorize with Hi Rokid again. |
+| No `onCustomCmdResult key=tg.dictate.start` on phone | Verify Hi Rokid is installed/running, glasses are paired, and CXR-L binding succeeded. |
+| `SpeechRecognizer unavailable` | Install/enable a public speech recognition provider such as Google Speech Recognition and Synthesis. |
+| `speech_error_7` / no speech | Treat as unclear/no speech; retry near the phone mic. |
+| Glasses send returns `rc=0` but phone sees nothing | This usually means CXR routing/listener mismatch. Inspect Hi Rokid CXR-L binding before changing Telegram UI code. |
+
+## Security notes
+
+- The Hi Rokid authorization token is stored in this app's private shared preferences.
+- Do not commit logs containing private transcripts.
+- The companion does not own Telegram credentials or Telegram session data; those stay in the glasses app.
