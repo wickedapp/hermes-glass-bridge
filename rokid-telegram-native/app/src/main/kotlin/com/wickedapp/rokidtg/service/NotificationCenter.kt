@@ -10,10 +10,12 @@ import androidx.core.app.NotificationCompat
 import com.wickedapp.rokidtg.MainActivity
 import com.wickedapp.rokidtg.R
 import com.wickedapp.rokidtg.data.ChatPrefs
+import com.wickedapp.rokidtg.ui.BannerHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import timber.log.Timber
 
 class NotificationCenter(
     private val ctx: Context,
@@ -56,14 +58,30 @@ class NotificationCenter(
         val notif = NotificationCompat.Builder(ctx, CHAN_BANNER)
             .setContentTitle(chat.title)
             .setContentText(preview)
+            .setTicker("${chat.title}: $preview")
             .setSmallIcon(R.drawable.ic_stat_rokid_tg)
             .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
             .build()
         ctx.getSystemService(NotificationManager::class.java)
             .notify(m.chatId.hashCode(), notif)
+        BannerHost.show(
+            "✉ ${chat.title}: $preview".take(120),
+            BannerHost.Kind.INFO,
+            durationMs = 5_000,
+        )
+        Timber.tag("Notif").i(
+            "posted chat=%d notificationId=%d channel=%s title=%s preview=%s",
+            m.chatId,
+            m.chatId.hashCode(),
+            CHAN_BANNER,
+            chat.title,
+            preview,
+        )
     }
 
     private fun ensureChannel() {
@@ -73,11 +91,20 @@ class NotificationCenter(
             CHAN_BANNER,
             ctx.getString(R.string.notification_channel_messages),
             NotificationManager.IMPORTANCE_HIGH,
-        )
+        ).apply {
+            description = ctx.getString(R.string.notification_channel_messages)
+            enableVibration(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+        }
         nm.createNotificationChannel(ch)
     }
 
     companion object {
-        private const val CHAN_BANNER = "tg-banner"
+        /**
+         * Keep this ID versioned. Android notification channels are immutable after
+         * first creation; older installs created tg-banner with DEFAULT importance,
+         * which puts messages only in the shade and prevents Rokid heads-up banners.
+         */
+        private const val CHAN_BANNER = "tg-banner-headsup-v2"
     }
 }
