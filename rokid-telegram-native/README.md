@@ -54,7 +54,13 @@ Only ASR/dictation is delegated to the phone companion. Telegram UI, TDLib, hist
 - Optional: `tdl` CLI for Mac-side session seeding.
 - Optional but recommended for Dictate: `../rokid-voice-companion/` installed on the paired Android phone.
 
-## Configure Telegram credentials
+### Configure Telegram credentials
+
+From repo root, you can run a readiness check:
+
+```bash
+./scripts/rokid-tg-doctor.sh
+```
 
 Create `local.properties` in this directory:
 

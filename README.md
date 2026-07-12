@@ -120,12 +120,25 @@ cd hermes-glass-bridge
 
 ### 2. Configure Telegram credentials
 
+Run the doctor first so missing tools are obvious:
+
+```bash
+./scripts/rokid-tg-doctor.sh
+```
+
 Create `rokid-telegram-native/local.properties`:
 
 ```properties
 sdk.dir=/Users/<you>/Library/Android/sdk
 tg.apiId=123456
 tg.apiHash=0123456789abcdef0123456789abcdef
+```
+
+Or let the doctor create it from environment variables:
+
+```bash
+TG_API_ID=123456 TG_API_HASH=0123456789abcdef0123456789abcdef \
+  ./scripts/rokid-tg-doctor.sh --write-local-properties
 ```
 
 `local.properties` is gitignored.
