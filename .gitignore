@@ -20,6 +20,14 @@ logs/
 *.tmp
 *.pid
 
+# Local/private configuration
+*.local.*
+.env.local
+config.local.json
+**/local.properties
+**/td.binlog
+**/tdlib/
+
 # OS / editors
 .DS_Store
 .idea/

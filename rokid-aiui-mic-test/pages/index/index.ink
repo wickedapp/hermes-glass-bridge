@@ -26,7 +26,7 @@ let lastSentAt = 0;
 const WATCHDOG_MS = 7000;
 const HERMES_ACK_TIMEOUT_MS = 10000;
 const APP_VERSION = 'v-aiui-clean-font12-2029';
-const BRIDGE_URL = 'ws://192.168.68.72:8765/ws/glass';
+const BRIDGE_URL = 'ws://127.0.0.1:8765/ws/glass';
 const PROJECT = 'rokid-glasses';
 
 function safeText(value) {

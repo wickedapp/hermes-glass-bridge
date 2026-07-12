@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # seed-session.sh — log in once on Mac, push td.binlog to glasses
 # Usage: ./scripts/seed-session.sh +<phone-number>
-# Requires: tdl CLI  https://github.com/iyear/tdl/releases
+# Requires: tdl CLI https://github.com/iyear/tdl/releases
 #           adb in PATH, glasses connected via USB or TCP
 
 set -euo pipefail
 
 PHONE="${1:?usage: $0 +<phone-number>}"
-SERIAL="${SERIAL:-1906092624100227}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/lib/adb-device.sh"
+resolve_adb_device
+
 PKG="com.wickedapp.rokidtg"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -30,13 +33,13 @@ if [ ! -f "$SESSION" ]; then
 fi
 
 # 3. Push session to glasses
-echo "==> Pushing session to device $SERIAL …"
-adb -s "$SERIAL" shell run-as "$PKG" mkdir -p files/tdlib
-adb -s "$SERIAL" push "$WORK/rokidtg" /data/local/tmp/tdlib_seed
-adb -s "$SERIAL" shell run-as "$PKG" cp -r /data/local/tmp/tdlib_seed/. files/tdlib/
-adb -s "$SERIAL" shell rm -rf /data/local/tmp/tdlib_seed
+echo "==> Pushing session to device $ADB_SERIAL …"
+adb_cmd shell run-as "$PKG" mkdir -p files/tdlib
+adb_cmd push "$WORK/rokidtg" /data/local/tmp/tdlib_seed
+adb_cmd shell run-as "$PKG" cp -r /data/local/tmp/tdlib_seed/. files/tdlib/
+adb_cmd shell rm -rf /data/local/tmp/tdlib_seed
 
-echo "==> Done. Seeded session for $PKG on $SERIAL."
+echo "==> Done. Seeded session for $PKG on $ADB_SERIAL."
 echo "    Force-stop and relaunch the app to pick up the session:"
-echo "    adb -s $SERIAL shell am force-stop $PKG"
-echo "    adb -s $SERIAL shell am start -n $PKG/.MainActivity"
+echo "    adb -s $ADB_SERIAL shell am force-stop $PKG"
+echo "    adb -s $ADB_SERIAL shell am start -n $PKG/.MainActivity"

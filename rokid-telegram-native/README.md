@@ -62,7 +62,13 @@ From repo root, you can run a readiness check:
 ./scripts/rokid-tg-doctor.sh
 ```
 
-Create `local.properties` in this directory:
+Copy the template:
+
+```bash
+cp local.properties.example local.properties
+```
+
+Then edit `local.properties` in this directory:
 
 ```properties
 sdk.dir=/Users/<you>/Library/Android/sdk

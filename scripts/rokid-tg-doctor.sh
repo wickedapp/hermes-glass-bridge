@@ -44,7 +44,8 @@ if [[ -n "$ADB_BIN" ]]; then
   ok "adb: $ADB_BIN"
   devices="$($ADB_BIN devices | sed '1d' | awk 'NF {print $1" "$2}')"
   if [[ -n "$devices" ]]; then
-    ok "ADB devices:\n$devices"
+    ok "ADB devices:"
+    printf '%s\n' "$devices"
   else
     warn "No ADB devices listed. Connect Rokid glasses and enable USB debugging before install."
   fi

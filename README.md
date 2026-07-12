@@ -6,6 +6,14 @@ This repository also contains the earlier **Hermes Glass Terminal** bridge and h
 
 > **Status:** experimental developer build. It is useful for personal sideloading and technical review, but it is not a Play Store product and still depends on Rokid/Android/CXR behavior that can vary by device firmware.
 
+## Start here
+
+- **Public user quick start:** [`QUICKSTART.md`](QUICKSTART.md)
+- **Main glasses app:** [`rokid-telegram-native/`](rokid-telegram-native/)
+- **Optional phone dictation companion:** [`rokid-voice-companion/`](rokid-voice-companion/)
+- **Public/private maintenance policy:** [`docs/MAINTAINING_PUBLIC_AND_PRIVATE_BUILDS.md`](docs/MAINTAINING_PUBLIC_AND_PRIVATE_BUILDS.md)
+- **Release checklist:** [`docs/PUBLIC_RELEASE_CHECKLIST.md`](docs/PUBLIC_RELEASE_CHECKLIST.md)
+
 ## Why Rokid TG?
 
 | Selling point | What it means |
@@ -64,15 +72,19 @@ Only the **dictation / ASR module** moves to the phone companion. Telegram UI, T
 
 | Path | Purpose | Status |
 |---|---|---|
+| `QUICKSTART.md` | Public user quick start for building/installing Rokid TG. | Start here |
 | `rokid-telegram-native/` | Main Rokid TG native glasses APK (`com.wickedapp.rokidtg`). | Active |
 | `rokid-voice-companion/` | Phone-side CXR-L ASR companion for Dictate. | Active / experimental |
 | `voice-helper/` | Sprite Ink ASR helper for fallback/debug dictation. | Fallback |
+| `scripts/rokid-tg-doctor.sh` | Checks host setup and can generate local Telegram config. | Active |
+| `scripts/glasses-smoke.sh` | Build/install/launch smoke test for the glasses APK. | Active |
+| `scripts/seed-session.sh` | Optional TDLib login seeding helper. | Active / power-user |
+| `scripts/push-helper.sh` | Pushes `voice-helper/` to the glasses. | Fallback path |
+| `docs/MAINTAINING_PUBLIC_AND_PRIVATE_BUILDS.md` | How to keep public source clean while using private local config. | Maintainers |
+| `docs/PUBLIC_RELEASE_CHECKLIST.md` | Checklist for safe source/APK releases. | Maintainers |
 | `docs/ROKID_DESIGN_GUIDELINES.md` | Rokid visual and interaction constraints. | Reference |
 | `docs/superpowers/specs/2026-06-30-rokid-glasses-telegram-client-design.md` | Original product spec and decision log. | Reference |
-| `scripts/glasses-smoke.sh` | Build/install/launch smoke test for the glasses APK. | Active |
-| `scripts/seed-session.sh` | Optional TDLib login seeding helper. | Active |
-| `scripts/push-helper.sh` | Pushes `voice-helper/` to the glasses. | Fallback path |
-| `app/`, `web/`, `android-app/` | Earlier Hermes Glass Terminal / Dev Console bridge. | Separate product |
+| `app/`, `web/`, `android-app/` | Earlier Hermes Glass Terminal / Dev Console bridge. | Separate product / not needed for Rokid TG |
 | `rokid-telegram-app/`, `rokid-telegram-phone-app/`, `rokid-telegram-mockup/` | Earlier prototypes. | Superseded/reference |
 
 ## Prerequisites
@@ -126,7 +138,13 @@ Run the doctor first so missing tools are obvious:
 ./scripts/rokid-tg-doctor.sh
 ```
 
-Create `rokid-telegram-native/local.properties`:
+Create `rokid-telegram-native/local.properties` from the template:
+
+```bash
+cp rokid-telegram-native/local.properties.example rokid-telegram-native/local.properties
+```
+
+Then edit it:
 
 ```properties
 sdk.dir=/Users/<you>/Library/Android/sdk
