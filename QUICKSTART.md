@@ -39,8 +39,8 @@ This guide is for someone who wants to run **Rokid TG** from the public reposito
 ### 1. Clone
 
 ```bash
-git clone https://github.com/wickedapp/hermes-glass-bridge.git
-cd hermes-glass-bridge
+git clone https://github.com/wickedapp/rokid-telegram.git
+cd rokid-telegram
 ```
 
 ### 2. Run setup doctor
@@ -135,6 +135,5 @@ You can log in directly through the glasses UI. For developer/power-user setups,
 
 ## What is not required
 
-- You do **not** need Hermes Agent to use Rokid TG.
-- You do **not** need the old `android-app/` Hermes Glass Terminal to use Rokid TG.
-- You do **not** need the superseded WebView Telegram prototypes.
+- You only need the directories documented in this quick start plus `rokid-telegram-native/`, `rokid-voice-companion/`, and optional `voice-helper/`.
+- Prototype WebView Telegram apps are not part of this public release.

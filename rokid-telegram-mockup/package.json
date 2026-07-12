@@ -1,7 +1,0 @@
-{
-  "name": "rokid-telegram-mockup",
-  "version": "0.1.0",
-  "description": "Rokid Sprite Ink mockup for Telegram on RG-glasses",
-  "main": "app.js",
-  "dependencies": {}
-}

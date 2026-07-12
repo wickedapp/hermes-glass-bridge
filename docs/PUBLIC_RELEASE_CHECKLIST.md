@@ -37,4 +37,4 @@ Personal builds may use local/private config, but it must stay outside git:
 - `.env.local`
 - generated AIX/APK files with private endpoints
 
-If a private endpoint is needed for Hermes Glass Terminal, generate that AIX locally from a template instead of committing the generated asset.
+Keep generated files and private endpoints outside git. If a private endpoint is needed for local experiments, generate local artifacts from templates and keep them gitignored.

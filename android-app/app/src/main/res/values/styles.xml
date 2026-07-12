@@ -1,9 +1,0 @@
-<resources>
-    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowActionBar">false</item>
-        <item name="android:windowFullscreen">true</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:colorAccent">#62ff8e</item>
-    </style>
-</resources>

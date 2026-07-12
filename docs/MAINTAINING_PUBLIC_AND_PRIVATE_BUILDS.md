@@ -10,7 +10,7 @@ Do **not** maintain a permanently divergent private fork unless there is a stron
 
 ## What belongs in the public repo
 
-- Rokid TG source code.
+- Rokid Telegram source code.
 - Phone companion source code.
 - Build scripts that work for any user.
 - Templates such as `local.properties.example`.
@@ -23,7 +23,7 @@ Do **not** maintain a permanently divergent private fork unless there is a stron
 - TDLib session files / `td.binlog`.
 - Hi Rokid authorization tokens.
 - Private hostnames, LAN IPs, Tailscale domains, ngrok URLs, Cloudflare tunnel secrets.
-- Generated APKs that embed private endpoints.
+- Generated APKs that embed private credentials or endpoints.
 - Logs/screenshots containing private chats.
 
 ## For personal/internal configuration
@@ -36,26 +36,13 @@ Prefer these patterns:
 | One-off local endpoints | `.env` / `.env.local` (gitignored) |
 | Generated remote config | `config.local.json` / `*.local.*` (gitignored) |
 | Device-specific serial | `SERIAL=<serial> ./script.sh`, not hardcoded default |
-| Private Dev Console bridge URL | runtime config or generated local AIX, not committed asset |
 
 ## Branch model
 
 Recommended:
 
-- `rokid-tg-client` / default branch: public, clean, generic.
+- `main`: public, clean, generic.
 - Local uncommitted config: preferred for personal endpoints/secrets.
 - Optional private branch: only for experimental code that cannot be public yet.
 
-If you create a private branch, keep it short-lived and regularly rebase onto the public branch. Do not put general fixes only on the private branch.
-
-## Current note about Hermes Glass Terminal
-
-`android-app/` is a separate Hermes Glass Terminal / Dev Console product, not required for Rokid TG.
-
-Private changes such as:
-
-```text
-ws://<your-private-host>:8765/ws/glass
-```
-
-must not be committed into public assets. If that product needs public sharing later, add a runtime configuration file or a generator script that produces a local AIX from a template.
+If you create a private branch, keep it short-lived and regularly rebase onto `main`. Do not put general fixes only on the private branch.
